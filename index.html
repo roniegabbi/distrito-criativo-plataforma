@@ -596,6 +596,8 @@ section.block.alt{background:var(--paper)}
           <div class="grp">Visão geral</div>
           <button class="active" data-p="dashboard"><span class="ic">📊</span> Dashboard</button>
           <button data-p="planejamento"><span class="ic">🎯</span> Planejamento Estratégico</button>
+          <div class="grp">Conteúdo da Vitrine</div>
+          <button data-p="cmsgaleria"><span class="ic">🖼️</span> Galeria</button>
           <div class="grp">Cadastros</div>
           <button data-p="pessoas"><span class="ic">👤</span> Pessoas</button>
           <button data-p="instituicoes"><span class="ic">🏢</span> Instituições</button>
@@ -939,7 +941,7 @@ document.addEventListener('click',e=>{
 });
 function navGov(p){
   const m=$('#gov-main');
-  ({dashboard:pageDashboard,planejamento:pagePlanejamento,pessoas:pagePessoas,instituicoes:pageInstituicoes,projetos:pageProjetos,
+  ({dashboard:pageDashboard,planejamento:pagePlanejamento,cmsgaleria:(window.pageCmsGaleria||pageDashboard),pessoas:pagePessoas,instituicoes:pageInstituicoes,projetos:pageProjetos,
     indicadores:pageIndicadores,orcamento:pageOrcamento,eventos:pageEventos,agenda:pageAgenda,estrutura:pageEstrutura}[p]||pageDashboard)(m);
   m.scrollTo(0,0);
 }
@@ -1035,6 +1037,7 @@ function openProj(id){
        <span style="font-size:12.5px;color:var(--muted)"><i style="width:10px;height:10px;border-radius:2px;background:${d.cor};display:inline-block"></i> ${d.nome}</span>
      </div><button class="x" onclick="closeModal()">&times;</button></div>
     <div class="mbody">
+      <div style="text-align:right;margin-bottom:10px"><button class="btn btn-petrol btn-sm" onclick="fichaProjeto(${p.id})">🖨️ Ficha Técnica (A4)</button></div>
       <p style="font-size:14.5px;color:#3a4a4e">${p.desc}</p>
       <div class="mrow" style="margin-top:20px">
         <div class="mfield"><div class="k">Líder do projeto</div><div class="v">${p.lider}</div><div style="font-size:12px;color:var(--muted)">${p.liderCargo}</div></div>
@@ -1185,6 +1188,10 @@ function openPessoa(id){
       <div><h2 style="margin:0">${p.nome}</h2><span style="font-size:13px;color:var(--muted)">${p.cargo}</span></div>
      </div><button class="x" onclick="closeModal()">&times;</button></div>
    <div class="mbody">
+     <div style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:8px">
+       <button class="btn btn-ghost btn-sm" onclick="openEditPessoa(${p.id})">✏️ Editar</button>
+       <button class="btn btn-ghost btn-sm" style="color:#DD0079;border-color:#f3c6dd" onclick="deletePessoa(${p.id})">🗑️ Excluir</button>
+     </div>
      <div class="mrow">
        <div class="mfield"><div class="k">Instituição</div><div class="v" style="font-size:14px">${inst?inst.nome:'—'}</div></div>
        <div class="mfield"><div class="k">Papel na governança</div><div class="v" style="font-size:14px">${PAPEIS_GOV[p.papel]||'—'}</div></div>
@@ -1266,6 +1273,10 @@ function openInstituicao(id){
       <div><h2 style="margin:0">${i.nome}</h2><span style="font-size:13px;color:var(--muted)">${i.sigla} · ${TIPO_INST[i.tipo]}${i.fonte?' · fonte de recurso':''}</span></div>
      </div><button class="x" onclick="closeModal()">&times;</button></div>
    <div class="mbody">
+     <div style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:8px">
+       <button class="btn btn-ghost btn-sm" onclick="openEditInstituicao(${i.id})">✏️ Editar</button>
+       <button class="btn btn-ghost btn-sm" style="color:#DD0079;border-color:#f3c6dd" onclick="deleteInstituicao(${i.id})">🗑️ Excluir</button>
+     </div>
      <div class="mrow" style="grid-template-columns:1fr 1fr">
        <div class="mfield"><div class="k">E-mail</div><div class="v" style="font-size:14px">${i.email||'—'}</div></div>
        <div class="mfield"><div class="k">Telefone</div><div class="v" style="font-size:14px">${i.fone||'—'}</div></div>
@@ -1435,7 +1446,7 @@ function renderMeetings(){
         <div class="chips">${r.participantes.map(p=>`<span class="chip">${p}</span>`).join('')}</div>
       </div>
       ${r.ata
-        ? `<div><span class="ai-badge">✦ Ata gerada por IA</span> <button class="btn btn-ghost btn-sm" onclick="copyAta(${r.id})">Copiar</button>
+        ? `<div><span class="ai-badge">✦ Ata gerada por IA</span> <button class="btn btn-ghost btn-sm" onclick="copyAta(${r.id})">Copiar</button> <button class="btn btn-petrol btn-sm" onclick="printAta(${r.id})">🖨️ Exportar PDF (A4)</button>
              <div class="ata-box" id="ata-${r.id}">${r.ata}</div></div>`
         : `<button class="btn btn-petrol btn-sm" id="gen-${r.id}" onclick="gerarAta(${r.id})">✦ Gerar ata com IA</button>`}
     </div>`).join('');
@@ -1569,12 +1580,17 @@ async function loadDimMap(){
   const {data} = await sb.from('dimensao').select('id,slug');
   dimSlugById = {}; (data||[]).forEach(d => dimSlugById[d.id] = d.slug);
 }
+// IDs numéricos p/ a UI + dbid (uuid) p/ o banco
+let instByUuid = {};
+const pById = id => PESSOAS.find(x => x.id == id);
+const iById = id => INSTITUICOES.find(x => x.id == id);
+
 async function hydrateEventos(){
   try{
     const {data} = await sb.from('evento').select('*').order('created_at');
     if(!data) return;
-    EVENTOS.length = 0;
-    data.forEach(e => EVENTOS.push({ id:e.id, nome:e.nome, eixo:e.eixo, status:e.status,
+    EVENTOS.length = 0; let n = 0;
+    data.forEach(e => EVENTOS.push({ id:++n, dbid:e.id, nome:e.nome, eixo:e.eixo, status:e.status,
       resumo:e.resumo, local:e.local, quando:e.quando, publico:e.publico_txt,
       publicoNum:e.publico_num||0, orc:Number(e.orcamento)||0, destaque:e.destaque, org:[] }));
   }catch(err){ console.warn('eventos', err); }
@@ -1582,16 +1598,17 @@ async function hydrateEventos(){
 async function hydrateInstituicoes(){
   const {data} = await sb.from('instituicao').select('*').order('nome');
   if(!data) return;
-  INSTITUICOES.length = 0;
-  data.forEach(i => INSTITUICOES.push({ id:i.id, nome:i.nome, sigla:i.sigla||'', tipo:i.tipo,
-    email:i.email||'', fone:i.telefone||'', fonte:i.is_fonte_recurso }));
+  INSTITUICOES.length = 0; instByUuid = {}; let n = 0;
+  data.forEach(i => { const id = ++n; instByUuid[i.id] = id;
+    INSTITUICOES.push({ id, dbid:i.id, nome:i.nome, sigla:i.sigla||'', tipo:i.tipo,
+      email:i.email||'', fone:i.telefone||'', fonte:i.is_fonte_recurso }); });
 }
 async function hydratePessoas(){
   const {data} = await sb.from('pessoa').select('*').order('nome');
   if(!data) return;
-  PESSOAS.length = 0;
-  data.forEach(p => PESSOAS.push({ id:p.id, nome:p.nome, email:p.email||'', fone:p.telefone||'',
-    inst:p.instituicao_id, cargo:p.cargo||'', dim:dimSlugById[p.dimensao_id]||'',
+  PESSOAS.length = 0; let n = 0;
+  data.forEach(p => PESSOAS.push({ id:++n, dbid:p.id, nome:p.nome, email:p.email||'', fone:p.telefone||'',
+    inst:instByUuid[p.instituicao_id]||null, cargo:p.cargo||'', dim:dimSlugById[p.dimensao_id]||'',
     papel:p.papel||'membro', comp:p.competencias||[] }));
 }
 async function hydrateProjetos(){
@@ -1599,9 +1616,9 @@ async function hydrateProjetos(){
     .select('*, fonte_recurso(*), acao(*), indicador(*), projeto_equipe(pessoa(nome)), lider:pessoa(nome,cargo)')
     .order('created_at');
   if(!data) return;
-  PROJETOS.length = 0;
+  PROJETOS.length = 0; let n = 0;
   data.forEach(p => PROJETOS.push({
-    id:p.id, nome:p.nome, dim:dimSlugById[p.dimensao_id]||'', status:ST_DB2P[p.status]||'plan', prog:p.progresso||0,
+    id:++n, dbid:p.id, nome:p.nome, dim:dimSlugById[p.dimensao_id]||'', status:ST_DB2P[p.status]||'plan', prog:p.progresso||0,
     desc:p.descricao||'', lider:(p.lider&&p.lider.nome)||'A definir', liderCargo:(p.lider&&p.lider.cargo)||'—',
     equipe:(p.projeto_equipe||[]).map(e => e.pessoa && e.pessoa.nome).filter(Boolean),
     inicio:p.inicio||'—', fim:p.fim||'—', prazo:p.prazo||'—', orc:Number(p.orcamento)||0,
@@ -1612,7 +1629,8 @@ async function hydrateProjetos(){
 }
 async function hydrateGov(){
   await loadDimMap();
-  await Promise.all([hydrateInstituicoes(), hydratePessoas()]);
+  await hydrateInstituicoes();   // antes de pessoas (mapeia instByUuid)
+  await hydratePessoas();
   await hydrateProjetos();
 }
 
@@ -1642,7 +1660,7 @@ window.savePessoa = async function(){
   const nome = document.getElementById('npx-nome').value.trim(); if(!nome){ toast('Informe o nome'); return; }
   const {error} = await sb.from('pessoa').insert({
     nome, email:document.getElementById('npx-email').value, telefone:document.getElementById('npx-fone').value,
-    instituicao_id:document.getElementById('npx-inst').value, cargo:document.getElementById('npx-cargo').value,
+    instituicao_id:(iById(document.getElementById('npx-inst').value)||{}).dbid||null, cargo:document.getElementById('npx-cargo').value,
     dimensao_id:slugToDimId(document.getElementById('npx-dim').value), papel:document.getElementById('npx-papel').value,
     competencias:document.getElementById('npx-comp').value.split(',').map(s=>s.trim()).filter(Boolean) });
   if(error){ toast('Erro ao salvar: '+error.message); return; }
@@ -1675,18 +1693,281 @@ window.saveProj = async function(){
   const {data, error} = await sb.from('projeto').insert({
     nome, dimensao_id:slugToDimId(document.getElementById('np-dim').value), status:ST_P2DB[st]||'planejado',
     progresso: st==='done'?100:0, descricao:document.getElementById('np-desc').value,
-    lider_id: document.getElementById('np-lider').value||null, prazo:document.getElementById('np-prazo').value,
+    lider_id: (pById(document.getElementById('np-lider').value)||{}).dbid||null, prazo:document.getElementById('np-prazo').value,
     orcamento:Number(document.getElementById('np-orc').value)||0 }).select('id').single();
   if(error){ toast('Erro ao salvar: '+error.message); return; }
-  const team = [...document.querySelectorAll('.np-team:checked')].map(c=>({ projeto_id:data.id, pessoa_id:c.value }));
+  const team = [...document.querySelectorAll('.np-team:checked')].map(c=>({ projeto_id:data.id, pessoa_id:(pById(c.value)||{}).dbid })).filter(t=>t.pessoa_id);
   if(team.length) await sb.from('projeto_equipe').insert(team);
   closeModal(); await hydrateProjetos(); navGov('projetos'); toast('✓ Projeto criado no banco — equipe vinculada');
 };
 
+// ---------- EDITAR / EXCLUIR: PESSOAS ----------
+window.openEditPessoa = function(id){
+  const p = pById(id); if(!p) return;
+  document.getElementById('modal-content').innerHTML = `
+   <div class="mhead"><div><h2>Editar pessoa</h2><span style="font-size:12.5px;color:var(--muted)">Atualiza a tabela <b>pessoa</b></span></div><button class="x" onclick="closeModal()">&times;</button></div>
+   <div class="mbody">
+     <div class="field"><label>Nome</label><input id="npx-nome" value="${(p.nome||'').replace(/"/g,'&quot;')}"></div>
+     <div class="mrow" style="grid-template-columns:1fr 1fr">
+       <div class="field"><label>E-mail</label><input id="npx-email" value="${p.email||''}"></div>
+       <div class="field"><label>Telefone</label><input id="npx-fone" value="${p.fone||''}"></div>
+     </div>
+     <div class="mrow" style="grid-template-columns:1fr 1fr">
+       <div class="field"><label>Instituição</label><select id="npx-inst">${INSTITUICOES.map(i=>`<option value="${i.id}" ${i.id===p.inst?'selected':''}>${i.sigla} — ${i.nome}</option>`).join('')}</select></div>
+       <div class="field"><label>Cargo/Função</label><input id="npx-cargo" value="${(p.cargo||'').replace(/"/g,'&quot;')}"></div>
+     </div>
+     <div class="mrow" style="grid-template-columns:1fr 1fr">
+       <div class="field"><label>Dimensão</label><select id="npx-dim"><option value="">—</option>${DIMS.map(d=>`<option value="${d.id}" ${d.id===p.dim?'selected':''}>${d.nome}</option>`).join('')}</select></div>
+       <div class="field"><label>Papel na governança</label><select id="npx-papel">${Object.entries(PAPEIS_GOV).map(([k,v])=>`<option value="${k}" ${k===p.papel?'selected':''}>${v}</option>`).join('')}</select></div>
+     </div>
+     <div class="field"><label>Competências (separe por vírgula)</label><input id="npx-comp" value="${(p.comp||[]).join(', ')}"></div>
+     <button class="btn btn-primary" onclick="updatePessoa(${id})">Salvar alterações</button>
+   </div>`;
+  document.getElementById('modal-bg').classList.add('open');
+};
+window.updatePessoa = async function(id){
+  const p = pById(id); if(!p) return;
+  const nome = document.getElementById('npx-nome').value.trim(); if(!nome){ toast('Informe o nome'); return; }
+  const {error} = await sb.from('pessoa').update({
+    nome, email:document.getElementById('npx-email').value, telefone:document.getElementById('npx-fone').value,
+    instituicao_id:(iById(document.getElementById('npx-inst').value)||{}).dbid||null, cargo:document.getElementById('npx-cargo').value,
+    dimensao_id:slugToDimId(document.getElementById('npx-dim').value), papel:document.getElementById('npx-papel').value,
+    competencias:document.getElementById('npx-comp').value.split(',').map(s=>s.trim()).filter(Boolean)
+  }).eq('id', p.dbid);
+  if(error){ toast('Erro ao atualizar: '+error.message); return; }
+  closeModal(); await hydratePessoas(); navGov('pessoas'); toast('✓ Pessoa atualizada');
+};
+window.deletePessoa = async function(id){
+  const p = pById(id); if(!p) return;
+  if(!confirm('Excluir "'+p.nome+'"? Esta ação não pode ser desfeita.')) return;
+  const {error} = await sb.from('pessoa').delete().eq('id', p.dbid);
+  if(error){ toast('Erro ao excluir: '+error.message); return; }
+  closeModal(); await hydratePessoas(); navGov('pessoas'); toast('✓ Pessoa excluída');
+};
+
+// ---------- EDITAR / EXCLUIR: INSTITUIÇÕES ----------
+window.openEditInstituicao = function(id){
+  const it = iById(id); if(!it) return;
+  document.getElementById('modal-content').innerHTML = `
+   <div class="mhead"><div><h2>Editar instituição</h2><span style="font-size:12.5px;color:var(--muted)">Atualiza a tabela <b>instituicao</b></span></div><button class="x" onclick="closeModal()">&times;</button></div>
+   <div class="mbody">
+     <div class="mrow" style="grid-template-columns:2fr 1fr">
+       <div class="field"><label>Nome</label><input id="nix-nome" value="${(it.nome||'').replace(/"/g,'&quot;')}"></div>
+       <div class="field"><label>Sigla</label><input id="nix-sigla" value="${(it.sigla||'').replace(/"/g,'&quot;')}"></div>
+     </div>
+     <div class="mrow" style="grid-template-columns:1fr 1fr">
+       <div class="field"><label>Tipo</label><select id="nix-tipo">${Object.entries(TIPO_INST).map(([k,v])=>`<option value="${k}" ${k===it.tipo?'selected':''}>${v}</option>`).join('')}</select></div>
+       <div class="field"><label>É fonte de recurso?</label><select id="nix-fonte"><option value="false" ${!it.fonte?'selected':''}>Não</option><option value="true" ${it.fonte?'selected':''}>Sim</option></select></div>
+     </div>
+     <div class="mrow" style="grid-template-columns:1fr 1fr">
+       <div class="field"><label>E-mail</label><input id="nix-email" value="${it.email||''}"></div>
+       <div class="field"><label>Telefone</label><input id="nix-fone" value="${it.fone||''}"></div>
+     </div>
+     <button class="btn btn-primary" onclick="updateInstituicao(${id})">Salvar alterações</button>
+   </div>`;
+  document.getElementById('modal-bg').classList.add('open');
+};
+window.updateInstituicao = async function(id){
+  const it = iById(id); if(!it) return;
+  const nome = document.getElementById('nix-nome').value.trim(); if(!nome){ toast('Informe o nome'); return; }
+  const {error} = await sb.from('instituicao').update({
+    nome, sigla:document.getElementById('nix-sigla').value, tipo:document.getElementById('nix-tipo').value,
+    email:document.getElementById('nix-email').value, telefone:document.getElementById('nix-fone').value,
+    is_fonte_recurso:document.getElementById('nix-fonte').value==='true'
+  }).eq('id', it.dbid);
+  if(error){ toast('Erro ao atualizar: '+error.message); return; }
+  closeModal(); await hydrateInstituicoes(); navGov('instituicoes'); toast('✓ Instituição atualizada');
+};
+window.deleteInstituicao = async function(id){
+  const it = iById(id); if(!it) return;
+  if(!confirm('Excluir "'+it.nome+'"? Esta ação não pode ser desfeita.')) return;
+  const {error} = await sb.from('instituicao').delete().eq('id', it.dbid);
+  if(error){ toast('Erro ao excluir: '+error.message); return; }
+  closeModal(); await hydrateInstituicoes(); navGov('instituicoes'); toast('✓ Instituição excluída');
+};
+
+// ---------- ATA (IA a partir de pauta + presentes) ----------
+window.composeAta = function(r){
+  const pres = r.participantes || [];
+  const lista = pres.map((p,i) => `   ${i+1}. ${p}`).join('\n');
+  const delib = (r.pautas||[]).map((p,i) =>
+    `${i+1}. ${p.toUpperCase()}\n   O item foi apresentado e colocado em discussão. Após as manifestações dos presentes, o ${r.tipo} deliberou dar prosseguimento às providências relativas a "${p}", com definição de responsáveis e prazos e acompanhamento pela Coordenação Executiva, que registrará os indicadores correspondentes na plataforma.`
+  ).join('\n\n');
+  return `ATA DE REUNIÃO — ${r.tipo.toUpperCase()}
+Distrito Criativo Centro-Gare · Santa Maria/RS
+
+Data: ${fmtDataExt(r.data)}, às ${r.hora}.
+Local: ${r.local}.
+
+1. ABERTURA
+Aos ${fmtDataExt(r.data)}, reuniram-se os membros do ${r.tipo} do Distrito Criativo Centro-Gare, no ${r.local}, para deliberar sobre a pauta abaixo. Verificado o quórum, a coordenação declarou aberta a reunião.
+
+2. PRESENTES (${pres.length})
+${lista || '   (não informados)'}
+
+3. PAUTA E DELIBERAÇÕES
+${delib || '   (sem itens de pauta)'}
+
+4. ENCAMINHAMENTOS
+Os responsáveis apresentarão o andamento dos itens na próxima reunião ordinária. A Coordenação Executiva consolidará as decisões e atualizará os indicadores na plataforma.
+
+5. ENCERRAMENTO
+Nada mais havendo a tratar, foi encerrada a reunião, da qual se lavrou a presente ata, que segue para leitura e aprovação dos presentes.
+
+_______________________________________
+Coordenação Executiva · Distrito Criativo Centro-Gare
+
+— Redigido com assistência de IA a partir da pauta e da lista de presentes. Revisar antes da aprovação formal.`;
+};
+
+// ---------- EXPORTAÇÃO A4 (Ficha Técnica e Ata) ----------
+function injectPrintInfra(){
+  if(document.getElementById('print-area')) return;
+  document.head.insertAdjacentHTML('beforeend', `<style id="print-css">
+    @media print {
+      @page { size:A4; margin:0; }
+      body > *:not(#print-area){ display:none !important; }
+      #print-area{ display:block !important; }
+    }
+    #print-area{ display:none; }
+    #print-area .sheet{ width:210mm; min-height:297mm; margin:0 auto; background:#fff; color:#16233B;
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; box-sizing:border-box; }
+    #print-area .sheet-head{ display:flex; justify-content:space-between; align-items:center; padding:16px 24px; background:#123A6B; }
+    #print-area .sheet-body{ padding:22px 26px; }
+    #print-area h1.sh{ font-size:22px; margin:0; }
+    #print-area h3.sh{ font-size:11px; text-transform:uppercase; letter-spacing:.6px; color:#DD0079; margin:20px 0 8px; border-bottom:1px solid #DCE3EE; padding-bottom:4px; }
+    #print-area .sh-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+    #print-area .sh-f .k{ font-size:10px; text-transform:uppercase; letter-spacing:.5px; color:#5B6577; font-weight:700; }
+    #print-area .sh-f .v{ font-size:14px; font-weight:700; margin-top:2px; }
+    #print-area table.sh{ width:100%; border-collapse:collapse; font-size:12.5px; }
+    #print-area table.sh th{ text-align:left; color:#5B6577; font-size:10px; text-transform:uppercase; border-bottom:1.5px solid #DCE3EE; padding:6px 4px; }
+    #print-area table.sh td{ padding:6px 4px; border-bottom:1px solid #EEF2F8; }
+    #print-area .chip2{ display:inline-block; background:#EEF2F8; border-radius:99px; padding:3px 10px; font-size:11.5px; margin:0 4px 4px 0; }
+    #print-area .ata-txt{ white-space:pre-wrap; font-family:'Georgia',serif; font-size:13px; line-height:1.7; color:#2a2320; }
+    #print-area .sh-foot{ margin-top:24px; border-top:1px solid #DCE3EE; padding-top:10px; font-size:10.5px; color:#8a94a3; }
+  </style>`);
+  document.body.insertAdjacentHTML('beforeend', '<div id="print-area"></div>');
+}
+function openPrint(html){
+  injectPrintInfra();
+  document.getElementById('print-area').innerHTML = html;
+  setTimeout(() => window.print(), 200);
+}
+window.fichaProjeto = function(id){
+  const p = PROJETOS.find(x => x.id == id); if(!p) return;
+  const d = DIMS.find(x => x.id === p.dim) || {nome:'—', cor:'#123A6B'};
+  const pub = p.fontes.filter(f=>f.t==='Pública').reduce((a,f)=>a+f.v,0);
+  const pctPub = p.orc ? Math.round(pub/p.orc*100) : 0;
+  openPrint(`
+  <div class="sheet">
+    <div class="sheet-head">
+      <img src="assets/brand/logo-white.png" style="height:44px">
+      <div style="text-align:right;color:#fff">
+        <div style="font-size:10px;letter-spacing:2px;opacity:.85">FICHA TÉCNICA DE PROJETO</div>
+        <div style="font-size:13px;font-weight:800">Distrito Criativo Centro-Gare</div>
+      </div>
+    </div>
+    <div style="height:6px;background:${d.cor}"></div>
+    <div class="sheet-body">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px">
+        <h1 class="sh">${p.nome}</h1>
+        <span style="white-space:nowrap;background:${d.cor}22;color:${d.cor};font-weight:800;font-size:12px;padding:5px 12px;border-radius:99px">${stLabel[p.status]}</span>
+      </div>
+      <div style="font-size:12px;color:#5B6577;margin:6px 0 16px"><span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${d.cor}"></span> ${d.nome} · Progresso ${p.prog}%</div>
+      <div class="sh-grid">
+        <div class="sh-f"><div class="k">Líder</div><div class="v">${p.lider}</div><div style="font-size:11px;color:#5B6577">${p.liderCargo||''}</div></div>
+        <div class="sh-f"><div class="k">Período</div><div class="v" style="font-size:13px">${p.inicio} → ${p.fim}</div><div style="font-size:11px;color:#5B6577">${p.prazo}</div></div>
+        <div class="sh-f"><div class="k">Orçamento</div><div class="v">${fmtBRL(p.orc)}</div><div style="font-size:11px;color:#5B6577">${pctPub}% público · ${100-pctPub}% privado</div></div>
+      </div>
+      <h3 class="sh">Descrição</h3>
+      <p style="font-size:13px;line-height:1.55;margin:0">${p.desc||'—'}</p>
+      <h3 class="sh">Equipe</h3>
+      <div>${(p.equipe&&p.equipe.length)?p.equipe.map(e=>`<span class="chip2">${e}</span>`).join(''):'<span style="color:#8a94a3;font-size:12px">Não definida</span>'}</div>
+      <h3 class="sh">Fontes de recursos</h3>
+      <table class="sh"><thead><tr><th>Origem</th><th>Fonte</th><th style="text-align:right">Valor</th></tr></thead><tbody>
+      ${p.fontes.map(f=>`<tr><td>${f.t}</td><td>${f.n}</td><td style="text-align:right;font-weight:700">${fmtBRL(f.v)}</td></tr>`).join('') || '<tr><td colspan="3" style="color:#8a94a3">—</td></tr>'}
+      </tbody></table>
+      ${p.acoes&&p.acoes.length?`<h3 class="sh">Ações</h3><table class="sh"><thead><tr><th>Ação</th><th>Responsável</th><th>Prazo</th><th>Status</th></tr></thead><tbody>${p.acoes.map(a=>`<tr><td>${a.n}</td><td>${a.resp}</td><td>${a.prazo}</td><td>${stLabel[a.st]}</td></tr>`).join('')}</tbody></table>`:''}
+      ${p.inds&&p.inds.length?`<h3 class="sh">Indicadores</h3><table class="sh"><thead><tr><th>Indicador</th><th style="text-align:right">Atual</th><th style="text-align:right">Meta</th></tr></thead><tbody>${p.inds.map(i=>`<tr><td>${i.n}</td><td style="text-align:right">${i.at}${i.u}</td><td style="text-align:right">${i.meta}${i.u}</td></tr>`).join('')}</tbody></table>`:''}
+      <div class="sh-foot">Distrito Criativo Centro-Gare · Santa Maria/RS · Ficha gerada em ${new Date().toLocaleDateString('pt-BR')} pela Plataforma de Gestão.</div>
+    </div>
+  </div>`);
+};
+window.printAta = function(id){
+  const r = REUNIOES.find(x => x.id == id); if(!r || !r.ata){ toast('Gere a ata primeiro'); return; }
+  openPrint(`
+  <div class="sheet">
+    <div class="sheet-head">
+      <img src="assets/brand/logo-white.png" style="height:44px">
+      <div style="text-align:right;color:#fff">
+        <div style="font-size:10px;letter-spacing:2px;opacity:.85">ATA DE REUNIÃO</div>
+        <div style="font-size:13px;font-weight:800">Distrito Criativo Centro-Gare</div>
+      </div>
+    </div>
+    <div style="height:6px;background:#DD0079"></div>
+    <div class="sheet-body">
+      <h1 class="sh" style="font-size:18px;margin-bottom:12px">${r.titulo}</h1>
+      <div class="ata-txt">${r.ata.replace(/</g,'&lt;')}</div>
+      <div class="sh-foot">Documento gerado em ${new Date().toLocaleDateString('pt-BR')} · sujeito a revisão e aprovação dos presentes.</div>
+    </div>
+  </div>`);
+};
+
+// ---------- CONTEÚDO DA VITRINE: GALERIA ----------
+async function hydrateGaleria(){
+  const {data} = await sb.from('galeria').select('*').order('ordem');
+  if(!data || !data.length) return;             // mantém fotos locais se a tabela estiver vazia
+  GALERIA.length = 0; let n = 0;
+  data.forEach(g => GALERIA.push({ id:++n, dbid:g.id, img:g.url, cap:g.titulo||'' }));
+}
+window.pageCmsGaleria = function(m){
+  m.innerHTML = `
+   <div class="page-head"><div><h1>Galeria da Vitrine</h1><p>Gerencie as fotos da área pública. Os envios ficam no Supabase Storage.</p></div></div>
+   <div class="card" style="margin-bottom:18px">
+     <h3>Adicionar foto</h3>
+     <div class="field"><label>Legenda</label><input id="cg-cap" placeholder="Ex.: Festival do Xis 2025"></div>
+     <div class="field"><label>Arquivo (JPG/PNG)</label><input id="cg-file" type="file" accept="image/*"></div>
+     <button class="btn btn-primary" id="cg-up" onclick="uploadGaleria()">⬆️ Enviar foto</button>
+   </div>
+   <div id="cg-grid" class="gallery"></div>`;
+  renderCmsGaleria();
+};
+function renderCmsGaleria(){
+  const wrap = document.getElementById('cg-grid'); if(!wrap) return;
+  wrap.innerHTML = GALERIA.map(g => `
+    <div class="gcard" style="cursor:default">
+      <img src="${g.img}" alt="">
+      <div class="cap">${g.cap||''}</div>
+      <button title="Remover" onclick="deleteGaleriaItem(${g.id})" style="position:absolute;top:8px;right:8px;background:#DD0079;color:#fff;border:none;border-radius:8px;width:32px;height:32px;font-size:15px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)">🗑️</button>
+    </div>`).join('') || '<p style="color:var(--muted);padding:16px">Nenhuma foto na galeria.</p>';
+}
+window.uploadGaleria = async function(){
+  const f = document.getElementById('cg-file').files[0];
+  if(!f){ toast('Escolha um arquivo de imagem'); return; }
+  const cap = document.getElementById('cg-cap').value || '';
+  const btn = document.getElementById('cg-up'); btn.disabled = true; btn.textContent = 'Enviando…';
+  const path = Date.now() + '_' + f.name.replace(/[^\w.\-]/g,'_');
+  const up = await sb.storage.from('galeria').upload(path, f, {upsert:false});
+  if(up.error){ toast('Erro no upload: '+up.error.message); btn.disabled=false; btn.textContent='⬆️ Enviar foto'; return; }
+  const { data:{ publicUrl } } = sb.storage.from('galeria').getPublicUrl(path);
+  const { error } = await sb.from('galeria').insert({ titulo:cap, url:publicUrl, ordem:(GALERIA.length+1) });
+  if(error){ toast('Erro ao salvar: '+error.message); btn.disabled=false; btn.textContent='⬆️ Enviar foto'; return; }
+  await hydrateGaleria(); renderVitrine(); navGov('cmsgaleria'); toast('✓ Foto adicionada à galeria');
+};
+window.deleteGaleriaItem = async function(id){
+  const g = GALERIA.find(x => x.id == id); if(!g) return;
+  if(!confirm('Remover esta foto da galeria?')) return;
+  const { error } = await sb.from('galeria').delete().eq('id', g.dbid);
+  if(error){ toast('Erro ao remover: '+error.message); return; }
+  await hydrateGaleria(); renderVitrine(); navGov('cmsgaleria'); toast('✓ Foto removida');
+};
+
 // ---------- BOOT ----------
 (async () => {
+  injectPrintInfra();
   await loadDimMap();
   await hydrateEventos();
+  await hydrateGaleria();
   renderVitrine();                              // re-renderiza a Vitrine com dados do banco
   const {data:{session}} = await sb.auth.getSession();
   if(session){                                  // sessão ativa: já entra na governança
