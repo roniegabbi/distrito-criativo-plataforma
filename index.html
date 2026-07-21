@@ -601,6 +601,7 @@ section.block.alt{background:var(--paper)}
           <div class="grp">Cadastros</div>
           <button data-p="pessoas"><span class="ic">👤</span> Pessoas</button>
           <button data-p="instituicoes"><span class="ic">🏢</span> Instituições</button>
+          <button data-p="captacao"><span class="ic">📥</span> Captação (link)</button>
           <div class="grp">Execução</div>
           <button data-p="projetos"><span class="ic">📁</span> Projetos & Processos</button>
           <button data-p="indicadores"><span class="ic">📈</span> Indicadores</button>
@@ -613,6 +614,41 @@ section.block.alt{background:var(--paper)}
         <button class="logout" onclick="logout()">← Sair da área restrita</button>
       </aside>
       <main class="gov-main" id="gov-main"></main>
+    </div>
+  </div>
+</div>
+
+<!-- Formulário público de cadastro (link p/ WhatsApp) -->
+<div id="view-cadastro" class="hidden">
+  <div id="cad-shell" style="min-height:100vh;display:grid;place-items:center;padding:34px 18px;background:linear-gradient(160deg,#0c2748,#123A6B)">
+    <form class="login-card" style="max-width:520px" onsubmit="enviarCadastroPublico(event)">
+      <img src="assets/brand/logo-distrito.png" alt="Distrito Criativo Centro-Gare" style="height:56px;margin-bottom:14px">
+      <h2>Cadastro no Distrito Criativo</h2>
+      <p class="sub">Preencha seus dados para fazer parte da rede de atores do Distrito Criativo Centro-Gare. Leva menos de 2 minutos.</p>
+      <div class="field"><label>Nome completo *</label><input id="cad-nome" required></div>
+      <div class="field"><label>WhatsApp / Telefone *</label><input id="cad-fone" required placeholder="(55) 9…"></div>
+      <div class="field"><label>E-mail</label><input id="cad-email" type="email"></div>
+      <div class="field"><label>Instituição / Empreendimento</label><input id="cad-inst" placeholder="Onde você atua"></div>
+      <div class="field"><label>Cargo / Função</label><input id="cad-cargo"></div>
+      <div class="field"><label>Área de interesse</label>
+        <select id="cad-area"><option value="">Selecione…</option>
+          <option value="amb">Ambiente Natural e Construído</option>
+          <option value="gov">Governança e Políticas Públicas</option>
+          <option value="eco">Economia Criativa</option>
+          <option value="ide">Identidade e Recursos Culturais</option>
+        </select></div>
+      <div class="field"><label>Competências / o que você faz</label><input id="cad-comp" placeholder="Ex.: gastronomia, design, música…"></div>
+      <div class="field"><label>Como você atua no Distrito?</label><textarea id="cad-atua" style="min-height:70px"></textarea></div>
+      <button class="btn btn-primary" type="submit" style="width:100%;justify-content:center">Enviar cadastro</button>
+      <div class="login-hint">🔒 Seus dados serão usados apenas para a gestão do Distrito Criativo Centro-Gare.</div>
+    </form>
+  </div>
+  <div id="cad-ok" class="hidden" style="min-height:100vh;display:grid;place-items:center;padding:34px 18px;background:linear-gradient(160deg,#0c2748,#123A6B)">
+    <div class="login-card" style="max-width:480px;text-align:center">
+      <div style="font-size:52px">✅</div>
+      <h2>Cadastro enviado!</h2>
+      <p class="sub">Recebemos suas informações. A equipe do Distrito vai revisar e em breve você fará parte da rede. Obrigado por participar!</p>
+      <a href="./" class="btn btn-petrol" style="justify-content:center">Conhecer o Distrito</a>
     </div>
   </div>
 </div>
@@ -941,7 +977,7 @@ document.addEventListener('click',e=>{
 });
 function navGov(p){
   const m=$('#gov-main');
-  ({dashboard:pageDashboard,planejamento:pagePlanejamento,cmsgaleria:(window.pageCmsGaleria||pageDashboard),pessoas:pagePessoas,instituicoes:pageInstituicoes,projetos:pageProjetos,
+  ({dashboard:pageDashboard,planejamento:pagePlanejamento,cmsgaleria:(window.pageCmsGaleria||pageDashboard),captacao:(window.pageCaptacao||pageDashboard),pessoas:pagePessoas,instituicoes:pageInstituicoes,projetos:pageProjetos,
     indicadores:pageIndicadores,orcamento:pageOrcamento,eventos:pageEventos,agenda:pageAgenda,estrutura:pageEstrutura}[p]||pageDashboard)(m);
   m.scrollTo(0,0);
 }
@@ -1962,8 +1998,87 @@ window.deleteGaleriaItem = async function(id){
   await hydrateGaleria(); renderVitrine(); navGov('cmsgaleria'); toast('✓ Foto removida');
 };
 
+// ---------- CAPTAÇÃO VIA LINK PÚBLICO ----------
+const AREA_LBL = {amb:'Ambiente Natural e Construído', gov:'Governança e Políticas Públicas', eco:'Economia Criativa', ide:'Identidade e Recursos Culturais'};
+function showCadastro(){
+  const tb = document.querySelector('.topbar'); if(tb) tb.style.display = 'none';
+  document.getElementById('view-vitrine').classList.add('hidden');
+  document.getElementById('view-gov').classList.add('hidden');
+  document.getElementById('view-cadastro').classList.remove('hidden');
+}
+window.enviarCadastroPublico = async function(e){
+  e.preventDefault();
+  const nome = document.getElementById('cad-nome').value.trim(); if(!nome) return;
+  const btn = e.target.querySelector('button[type=submit]'); btn.disabled = true; btn.textContent = 'Enviando…';
+  const { error } = await sb.from('cadastro_publico').insert({
+    nome, telefone:document.getElementById('cad-fone').value, email:document.getElementById('cad-email').value,
+    instituicao_nome:document.getElementById('cad-inst').value, cargo:document.getElementById('cad-cargo').value,
+    area:document.getElementById('cad-area').value, competencias:document.getElementById('cad-comp').value,
+    atua:document.getElementById('cad-atua').value, tipo:'novo' });
+  if(error){ btn.disabled=false; btn.textContent='Enviar cadastro'; alert('Erro ao enviar: '+error.message); return; }
+  document.getElementById('cad-shell').classList.add('hidden');
+  document.getElementById('cad-ok').classList.remove('hidden');
+};
+window.copiarLinkCadastro = function(){
+  const url = location.origin + location.pathname + '#cadastro';
+  if(navigator.clipboard) navigator.clipboard.writeText(url);
+  toast('🔗 Link copiado: ' + url);
+};
+window.pageCaptacao = async function(m){
+  m.innerHTML = `
+   <div class="page-head"><div><h1>Captação de Cadastros</h1><p>Respostas do formulário público. Revise e importe para a base de Pessoas.</p></div>
+     <button class="btn btn-petrol btn-sm" onclick="copiarLinkCadastro()">🔗 Copiar link do formulário</button></div>
+   <div class="note" style="margin-bottom:16px">Compartilhe o link no WhatsApp. Cada resposta aparece aqui para você <b>Importar</b> (cria a pessoa) ou <b>Descartar</b>.</div>
+   <div id="cap-list"><p style="color:var(--muted)">Carregando…</p></div>`;
+  const { data } = await sb.from('cadastro_publico').select('*').neq('status','descartado').order('created_at',{ascending:false});
+  renderCaptacao(data||[]);
+};
+function renderCaptacao(list){
+  const wrap = document.getElementById('cap-list'); if(!wrap) return;
+  if(!list.length){ wrap.innerHTML = '<div class="card"><p style="color:var(--muted)">Nenhum cadastro recebido ainda. Compartilhe o link do formulário.</p></div>'; return; }
+  wrap.innerHTML = list.map(c => `
+    <div class="card" style="margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+        <div>
+          <h3 style="margin:0 0 3px">${c.nome} ${c.status==='importado'?'<span class="st done">Importado</span>':'<span class="st plan">Novo</span>'}</h3>
+          <div style="font-size:13px;color:var(--muted)">${c.cargo||'—'}${c.instituicao_nome?' · '+c.instituicao_nome:''}</div>
+        </div>
+        <div style="display:flex;gap:8px">
+          ${c.status!=='importado'?`<button class="btn btn-primary btn-sm" onclick="importCadastro('${c.id}')">Importar</button>`:''}
+          <button class="btn btn-ghost btn-sm" onclick="descartarCadastro('${c.id}')">Descartar</button>
+        </div>
+      </div>
+      <div class="chips" style="margin-top:10px">
+        ${c.telefone?`<span class="chip">📱 ${c.telefone}</span>`:''}
+        ${c.email?`<span class="chip">✉️ ${c.email}</span>`:''}
+        ${c.area?`<span class="chip">${AREA_LBL[c.area]||c.area}</span>`:''}
+        ${(c.competencias||'').split(',').map(s=>s.trim()).filter(Boolean).map(x=>`<span class="chip">${x}</span>`).join('')}
+      </div>
+      ${c.atua?`<p style="font-size:13px;color:#3a4a4e;margin:10px 0 0">“${c.atua}”</p>`:''}
+    </div>`).join('');
+}
+window.importCadastro = async function(id){
+  const { data:row } = await sb.from('cadastro_publico').select('*').eq('id', id).single();
+  if(!row) return;
+  const inst = INSTITUICOES.find(i => row.instituicao_nome && (i.nome.toLowerCase() === row.instituicao_nome.toLowerCase() || (i.sigla||'').toLowerCase() === row.instituicao_nome.toLowerCase()));
+  const { error } = await sb.from('pessoa').insert({
+    nome:row.nome, email:row.email, telefone:row.telefone,
+    instituicao_id: inst ? inst.dbid : null, cargo:row.cargo,
+    dimensao_id: slugToDimId(row.area), papel:'membro',
+    competencias: (row.competencias||'').split(',').map(s=>s.trim()).filter(Boolean) });
+  if(error){ toast('Erro ao importar: '+error.message); return; }
+  await sb.from('cadastro_publico').update({status:'importado'}).eq('id', id);
+  await hydratePessoas(); navGov('captacao'); toast('✓ Cadastro importado para Pessoas');
+};
+window.descartarCadastro = async function(id){
+  if(!confirm('Descartar este cadastro?')) return;
+  await sb.from('cadastro_publico').update({status:'descartado'}).eq('id', id);
+  navGov('captacao'); toast('Cadastro descartado');
+};
+
 // ---------- BOOT ----------
 (async () => {
+  if(location.hash.toLowerCase().includes('cadastro')){ showCadastro(); return; }  // link público: só o formulário
   injectPrintInfra();
   await loadDimMap();
   await hydrateEventos();
