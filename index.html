@@ -590,12 +590,14 @@ section.block.alt{background:var(--paper)}
       <aside class="sidebar">
         <div class="u">
           <div class="av">RC</div>
-          <div><b>Rose Carneiro</b><span>Coordenação Executiva</span></div>
+          <div><b>Rose Carneiro</b></div>
         </div>
         <nav class="snav" id="snav">
           <div class="grp">Visão geral</div>
           <button class="active" data-p="dashboard"><span class="ic">📊</span> Dashboard</button>
           <button data-p="planejamento"><span class="ic">🎯</span> Planejamento Estratégico</button>
+          <button data-p="mapa"><span class="ic">🗺️</span> Mapa Estratégico</button>
+          <button data-p="livro"><span class="ic">📕</span> Livro do Planejamento</button>
           <div class="grp">Conteúdo da Vitrine</div>
           <button data-p="cmsidentidade"><span class="ic">🎨</span> Identidade Visual</button>
           <button data-p="cmsgaleria"><span class="ic">🖼️</span> Galeria</button>
@@ -978,7 +980,7 @@ document.addEventListener('click',e=>{
 });
 function navGov(p){
   const m=$('#gov-main');
-  ({dashboard:pageDashboard,planejamento:pagePlanejamento,cmsidentidade:(window.pageCmsIdentidade||pageDashboard),cmsgaleria:(window.pageCmsGaleria||pageDashboard),captacao:(window.pageCaptacao||pageDashboard),pessoas:pagePessoas,instituicoes:pageInstituicoes,projetos:pageProjetos,
+  ({dashboard:pageDashboard,planejamento:pagePlanejamento,mapa:(window.pageMapa||pageDashboard),livro:(window.pageLivro||pageDashboard),cmsidentidade:(window.pageCmsIdentidade||pageDashboard),cmsgaleria:(window.pageCmsGaleria||pageDashboard),captacao:(window.pageCaptacao||pageDashboard),pessoas:pagePessoas,instituicoes:pageInstituicoes,projetos:pageProjetos,
     indicadores:pageIndicadores,orcamento:pageOrcamento,eventos:pageEventos,agenda:pageAgenda,estrutura:pageEstrutura}[p]||pageDashboard)(m);
   m.scrollTo(0,0);
 }
@@ -1867,6 +1869,7 @@ function injectPrintInfra(){
       #print-area{ display:block !important; }
     }
     #print-area{ display:none; }
+    #print-area .sheet + .sheet{ page-break-before: always; }
     #print-area .sheet{ width:210mm; min-height:297mm; margin:0 auto; background:#fff; color:#16233B;
       font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; box-sizing:border-box; }
     #print-area .sheet-head{ display:flex; justify-content:space-between; align-items:center; padding:16px 24px; background:#123A6B; }
@@ -2324,6 +2327,126 @@ window.deleteComite = async function(id){
   const { error } = await sb.from('comite').delete().eq('id', id);
   if(error){ toast('Erro: '+error.message); return; }
   navGov('estrutura'); toast('Comitê excluído');
+};
+
+// ---------- ESTRATÉGIA: MAPA (BSC) + LIVRO DO PLANEJAMENTO ----------
+const FILOSOFIA = {
+  visao: 'Transformar o território do Distrito Criativo Centro-Gare em um ambiente de convivência entre pessoas, de vivência da memória da cidade e de desenvolvimento econômico sustentável, dando condições para o florescimento do potencial criativo e inovador das pessoas que ali vivem, trabalham e visitam.',
+  missao: 'Aproximar e potencializar atores de diferentes esferas para atuar coletivamente na geração de valor para o território, garantindo coesão e continuidade nas ações para o Distrito Criativo.',
+  valores: ['Sustentabilidade econômica, social e ambiental','Respeito à memória ferroviária','Colaboração','Inclusão','Inovação com e para as pessoas']
+};
+let OBJETIVOS = [];
+async function hydrateObjetivos(){
+  const { data } = await sb.from('objetivo_estrategico').select('*').order('numero');
+  OBJETIVOS = (data||[]).map(o => ({ numero:o.numero, titulo:o.titulo, dim:dimSlugById[o.dimensao_id]||'' }));
+}
+window.pageMapa = async function(m){
+  await hydrateObjetivos();
+  m.innerHTML = `
+   <div class="page-head"><div><h1>Mapa Estratégico</h1><p>Visão, missão e os objetivos estratégicos por dimensão — no estilo Balanced Scorecard.</p></div>
+     <button class="btn btn-ghost btn-sm" onclick="navGov('livro')">📕 Livro do Planejamento</button></div>
+   <div class="card" style="background:var(--navy);color:#fff;border:none">
+     <div style="font-size:11px;letter-spacing:2px;color:var(--gold);font-weight:800">VISÃO</div>
+     <p style="font-size:15px;margin:6px 0 0;line-height:1.5">${FILOSOFIA.visao}</p>
+   </div>
+   <div class="grid2" style="margin:14px 0">
+     <div class="card"><div style="font-size:11px;letter-spacing:1.5px;color:var(--brick);font-weight:800">MISSÃO</div><p style="font-size:13.5px;color:var(--muted);margin:6px 0 0;line-height:1.5">${FILOSOFIA.missao}</p></div>
+     <div class="card"><div style="font-size:11px;letter-spacing:1.5px;color:var(--brick);font-weight:800">VALORES</div><div class="chips" style="margin-top:8px">${FILOSOFIA.valores.map(v=>`<span class="chip">${v}</span>`).join('')}</div></div>
+   </div>
+   <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin:6px 0 10px">Perspectivas · Objetivos Estratégicos</div>
+   ${DIMS.map(d => { const objs = OBJETIVOS.filter(o => o.dim===d.id); return `
+     <div class="card" style="margin-bottom:12px;border-left:6px solid ${d.cor}">
+       <div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">${d.nome}</h3><span style="font-size:12px;color:var(--muted)">${objs.length} objetivos</span></div>
+       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:8px;margin-top:12px">
+         ${objs.map(o => `<div style="background:var(--paper);border:1px solid var(--line);border-top:3px solid ${d.cor};border-radius:9px;padding:9px 11px;font-size:12.5px;line-height:1.35"><b style="color:${d.cor}">${o.numero}.</b> ${o.titulo}</div>`).join('') || '<span style="color:var(--muted);font-size:13px">Sem objetivos.</span>'}
+       </div>
+     </div>`; }).join('')}`;
+};
+window.pageLivro = function(m){
+  m.innerHTML = `
+   <div class="page-head"><div><h1>Livro do Planejamento</h1><p>O documento completo do plano, em A4, montado com os dados atuais.</p></div>
+     <button class="btn btn-primary btn-sm" onclick="exportarLivro()">🖨️ Exportar Livro (PDF A4)</button></div>
+   <div class="card">
+     <h3>O que o livro inclui</h3>
+     <ul style="font-size:14px;color:var(--text-primary,#16233B);line-height:1.9;margin:0;padding-left:20px">
+       <li>Capa institucional (identidade do site)</li>
+       <li>Filosofia — Visão, Missão e Valores</li>
+       <li>Dimensões e os 41 objetivos estratégicos</li>
+       <li>Projetos e processos (líder, prazo, orçamento e fontes)</li>
+       <li>Indicadores de impacto com metas</li>
+       <li>Estrutura de governança e comitês</li>
+       <li>Eventos e iniciativas do território</li>
+     </ul>
+     <div class="note" style="margin-top:14px">🔄 O documento é montado na hora com os dados atuais do banco — sempre atualizado. Ao clicar em exportar, escolha “Salvar como PDF”, tamanho A4.</div>
+   </div>`;
+};
+window.exportarLivro = async function(){
+  toast('Montando o livro…');
+  await Promise.all([hydrateObjetivos(), hydrateImpacto(), hydrateComites()]);
+  const hoje = new Date().toLocaleDateString('pt-BR');
+  const logoW = SITECFG.logo_white_url || 'assets/brand/logo-white.png';
+  const head = sub => `<div class="sheet-head"><img src="${logoW}" style="height:38px"><div style="text-align:right;color:#fff"><div style="font-size:10px;letter-spacing:2px;opacity:.85">${sub}</div><div style="font-size:12px;font-weight:800">Distrito Criativo Centro-Gare</div></div></div>`;
+  const orcTot = PROJETOS.reduce((s,p)=>s+(p.orc||0),0);
+
+  const capa = `<div class="sheet" style="background:#123A6B;color:#fff;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:40px">
+     <img src="${logoW}" style="width:340px;max-width:70%;margin-bottom:40px">
+     <div style="font-size:13px;letter-spacing:3px;color:#EFA81C;font-weight:800">PLANO DE AÇÃO</div>
+     <div style="font-size:38px;font-weight:800;margin:8px 0">Livro do Planejamento</div>
+     <div style="font-size:15px;opacity:.85;max-width:70%">Distrito Criativo Centro-Gare · Santa Maria/RS</div>
+     <div style="margin-top:40px;font-size:12px;opacity:.7">Documento gerado em ${hoje}</div>
+   </div>`;
+
+  const filosofia = `<div class="sheet">${head('FILOSOFIA')}<div class="sheet-body">
+     <h1 class="sh">Filosofia</h1>
+     <h3 class="sh">Visão</h3><p style="font-size:13.5px;line-height:1.6">${FILOSOFIA.visao}</p>
+     <h3 class="sh">Missão</h3><p style="font-size:13.5px;line-height:1.6">${FILOSOFIA.missao}</p>
+     <h3 class="sh">Valores</h3><div>${FILOSOFIA.valores.map(v=>`<span class="chip2">${v}</span>`).join('')}</div>
+     <h3 class="sh">Números do plano</h3>
+     <div class="sh-grid">
+       <div class="sh-f"><div class="k">Dimensões</div><div class="v">4</div></div>
+       <div class="sh-f"><div class="k">Objetivos estratégicos</div><div class="v">${OBJETIVOS.length}</div></div>
+       <div class="sh-f"><div class="k">Projetos</div><div class="v">${PROJETOS.length}</div></div>
+     </div>
+   </div></div>`;
+
+  const dimsObj = `<div class="sheet">${head('DIMENSÕES E OBJETIVOS')}<div class="sheet-body">
+     <h1 class="sh">Dimensões & Objetivos Estratégicos</h1>
+     ${DIMS.map(d=>{ const objs=OBJETIVOS.filter(o=>o.dim===d.id); return `
+       <h3 class="sh" style="color:${d.cor};border-color:${d.cor}44">${d.nome} · ${objs.length} objetivos</h3>
+       <div style="columns:2;column-gap:22px;font-size:12px;line-height:1.5">${objs.map(o=>`<div style="break-inside:avoid;margin-bottom:4px"><b style="color:${d.cor}">${o.numero}.</b> ${o.titulo}</div>`).join('')}</div>`;}).join('')}
+   </div></div>`;
+
+  const projetos = `<div class="sheet">${head('PROJETOS E PROCESSOS')}<div class="sheet-body">
+     <h1 class="sh">Projetos e Processos</h1>
+     <table class="sh"><thead><tr><th>Projeto</th><th>Dimensão</th><th>Líder</th><th>Status</th><th style="text-align:right">Orçamento</th></tr></thead><tbody>
+     ${PROJETOS.map(p=>{const d=dimById(p.dim);return `<tr><td>${p.nome}</td><td>${d?d.nome.split(' ')[0]:'—'}</td><td>${p.lider}</td><td>${stLabel[p.status]}</td><td style="text-align:right;font-weight:700">${fmtBRL(p.orc)}</td></tr>`;}).join('')}
+     </tbody><tfoot><tr><td colspan="4" style="text-align:right;font-weight:800;padding-top:8px">Total mobilizado</td><td style="text-align:right;font-weight:800;padding-top:8px">${fmtBRL(orcTot)}</td></tr></tfoot></table>
+   </div></div>`;
+
+  const indicadores = `<div class="sheet">${head('INDICADORES DE IMPACTO')}<div class="sheet-body">
+     <h1 class="sh">Indicadores de Impacto</h1>
+     ${IMPACTO.map(r=>{const v=impValor(r);const pct=r.meta?Math.min(100,Math.round(v/r.meta*100)):null;return `
+       <div style="margin-bottom:12px">
+         <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700"><span>${r.icone||''} ${r.nome}</span><span>${impFmt(v,r.formato)}${pct!==null?(' · '+pct+'% da meta'):''}</span></div>
+         ${pct!==null?`<div style="height:8px;background:#EEF2F8;border-radius:99px;overflow:hidden;margin-top:4px"><div style="width:${pct}%;height:100%;background:${r.cor}"></div></div>`:''}
+         <div style="font-size:10.5px;color:#8a94a3;margin-top:2px">${r.fonte||''}</div>
+       </div>`;}).join('')}
+   </div></div>`;
+
+  const governanca = `<div class="sheet">${head('GOVERNANÇA')}<div class="sheet-body">
+     <h1 class="sh">Estrutura de Governança</h1>
+     ${COMITES.map(c=>`<div style="margin-bottom:10px"><b style="font-size:13px">${c.nome}</b> <span style="font-size:11px;color:#5B6577">· ${TIPO_COMITE[c.tipo]||c.tipo}</span><div style="font-size:12px;margin-top:3px">${c.membros.length?c.membros.map(mb=>`${mb.nome} <small style="color:#8a94a3">(${PAPEL_COMITE[mb.papel]||mb.papel})</small>`).join(' · '):'<span style="color:#8a94a3">Sem membros</span>'}</div></div>`).join('')}
+   </div></div>`;
+
+  const eventos = `<div class="sheet">${head('EVENTOS E INICIATIVAS')}<div class="sheet-body">
+     <h1 class="sh">Eventos e Iniciativas</h1>
+     <table class="sh"><thead><tr><th>Iniciativa</th><th>Local</th><th>Quando</th><th>Público</th></tr></thead><tbody>
+     ${EVENTOS.map(e=>`<tr><td>${e.nome}</td><td>${e.local||'—'}</td><td>${e.quando||'—'}</td><td>${e.publico||'—'}</td></tr>`).join('')}
+     </tbody></table>
+     <div class="sh-foot">Distrito Criativo Centro-Gare · Santa Maria/RS · Documento gerado automaticamente em ${hoje} pela Plataforma de Gestão.</div>
+   </div></div>`;
+
+  openPrint(capa + filosofia + dimsObj + projetos + indicadores + governanca + eventos);
 };
 
 // ---------- BOOT ----------
