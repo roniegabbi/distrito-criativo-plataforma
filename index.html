@@ -924,15 +924,14 @@ function renderVitrine(){
     <div class="eco-card">
       ${e.img?`<div class="eco-banner" style="background-image:url('${e.img}')"></div>`:''}
       <div class="eco-top">
-        <div class="eco-ic" style="background:${x.cor}">${x.ic}</div>
         <span class="eco-tag" style="background:${x.cor}1a;color:${x.cor}">${x.nome}</span>
       </div>
       <div class="eco-body">
         <h3>${e.nome}</h3>
         <p>${e.resumo}</p>
         <div class="eco-meta">
-          <span>📍 <b>${e.local}</b></span>
-          <span>🗓️ ${e.quando}</span>
+          <span><b>${e.local}</b></span>
+          <span>${e.quando}</span>
           <span class="eco-stat" style="color:${x.cor}">${e.destaque}</span>
         </div>
       </div>
@@ -1036,7 +1035,7 @@ function pagePlanejamento(m){
 function pageProjetos(m){
   m.innerHTML=`
    <div class="page-head"><div><h1>Projetos & Processos</h1><p>Gestão de projetos com ações, prazos, líder, equipe, orçamento e fontes de recursos.</p></div>
-     <div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" onclick="projGantt()">🗓️ Gantt (tempo)</button><button class="btn btn-primary btn-sm" onclick="openNewProj()">+ Novo projeto</button></div></div>
+     <div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" onclick="relatorioProjetos()">Relatório (A4)</button><button class="btn btn-ghost btn-sm" onclick="projGantt()">Gantt (tempo)</button><button class="btn btn-primary btn-sm" onclick="openNewProj()">+ Novo projeto</button></div></div>
    <div class="toolbar">
      <input id="pf-q" placeholder="🔍 Buscar projeto…" oninput="filterProj()">
      <select id="pf-dim" onchange="filterProj()"><option value="">Todas as dimensões</option>${DIMS.map(d=>`<option value="${d.id}">${d.nome}</option>`).join('')}</select>
@@ -1399,14 +1398,14 @@ function renderEvGrid(list){
       <div style="height:6px;background:${x.cor}"></div>
       <div style="padding:18px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <span class="eco-ic" style="background:${x.cor};width:42px;height:42px;font-size:20px">${x.ic}</span>
+          <span style="width:16px;height:16px;border-radius:4px;background:${x.cor};display:inline-block"></span>
           <span class="st ${EV_CL[e.status]}">${EV_ST[e.status]}</span>
         </div>
         <h3 style="font-size:16px;margin-bottom:4px">${e.nome}</h3>
         <div style="font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">${x.nome}</div>
         <div style="font-size:12.5px;color:var(--muted);display:flex;flex-direction:column;gap:3px">
-          <span>📍 ${e.local}</span><span>🗓️ ${e.quando}</span>
-          <span>👥 ${e.publico} · 💰 ${fmtBRL(e.orc)}</span>
+          <span>${e.local}</span><span>${e.quando}</span>
+          <span>${e.publico} · ${fmtBRL(e.orc)}</span>
         </div>
       </div>
     </div>`;}).join('');
@@ -1416,7 +1415,7 @@ function openEvento(id){
   $('#modal-content').innerHTML=`
     <div class="mhead"><div>
        <span class="st ${EV_CL[e.status]}" style="margin-bottom:8px;display:inline-block">${EV_ST[e.status]}</span>
-       <h2>${x.ic} ${e.nome}</h2>
+       <h2>${e.nome}</h2>
        <span style="font-size:12.5px;color:var(--muted)"><i style="width:10px;height:10px;border-radius:2px;background:${x.cor};display:inline-block"></i> ${x.nome}</span>
      </div><button class="x" onclick="closeModal()">&times;</button></div>
     <div class="mbody">
@@ -2510,6 +2509,52 @@ window.exportarMapa = async function(){
       <div style="margin-top:10px;font-size:8.5px;color:#8a94a3;text-align:right">Distrito Criativo Centro-Gare · Santa Maria/RS · Mapa Estratégico gerado em ${new Date().toLocaleDateString('pt-BR')} pela Plataforma de Gestão.</div>
     </div></div>`;
   openPrint(html, 'landscape');
+};
+
+// ---------- RELATÓRIO DE PROJETOS (ficha técnica coletiva) ----------
+window.relatorioProjetos = function(){
+  const logoW = SITECFG.logo_white_url || 'assets/brand/logo-white.png';
+  const head = sub => `<div class="sheet-head"><img src="${logoW}" style="height:38px"><div style="text-align:right;color:#fff"><div style="font-size:10px;letter-spacing:2px;opacity:.85">${sub}</div><div style="font-size:12px;font-weight:800">Distrito Criativo Centro-Gare</div></div></div>`;
+  const hoje = new Date().toLocaleDateString('pt-BR');
+  const tot = PROJETOS.length;
+  const exec = PROJETOS.filter(p=>p.status==='exec').length;
+  const done = PROJETOS.filter(p=>p.status==='done').length;
+  const orcTot = PROJETOS.reduce((s,p)=>s+(p.orc||0),0);
+  const resumo = `<div class="sheet">${head('RELATÓRIO DE PROJETOS')}<div class="sheet-body">
+     <h1 class="sh">Relatório de Projetos</h1>
+     <div style="font-size:12px;color:#5B6577;margin-bottom:14px">Ficha técnica coletiva · gerado em ${hoje}</div>
+     <div class="sh-grid" style="grid-template-columns:repeat(4,1fr)">
+       <div class="sh-f"><div class="k">Projetos</div><div class="v">${tot}</div></div>
+       <div class="sh-f"><div class="k">Em execução</div><div class="v">${exec}</div></div>
+       <div class="sh-f"><div class="k">Concluídos</div><div class="v">${done}</div></div>
+       <div class="sh-f"><div class="k">Investimento total</div><div class="v">${fmtBRL(orcTot)}</div></div>
+     </div>
+     <h3 class="sh">Portfólio</h3>
+     <table class="sh"><thead><tr><th>Projeto</th><th>Dimensão</th><th>Status</th><th style="text-align:right">Progr.</th><th style="text-align:right">Orçamento</th></tr></thead><tbody>
+     ${PROJETOS.map(p=>{const d=dimById(p.dim);return `<tr><td>${p.nome}</td><td>${d?d.nome:'—'}</td><td>${stLabel[p.status]}</td><td style="text-align:right">${p.prog}%</td><td style="text-align:right;font-weight:700">${fmtBRL(p.orc)}</td></tr>`;}).join('')}
+     </tbody><tfoot><tr><td colspan="4" style="text-align:right;font-weight:800;padding-top:8px">Total mobilizado</td><td style="text-align:right;font-weight:800;padding-top:8px">${fmtBRL(orcTot)}</td></tr></tfoot></table>
+   </div></div>`;
+  const blocos = PROJETOS.map(p=>{
+    const d = dimById(p.dim) || {cor:'#123A6B', nome:'—'};
+    const objs = (p.objetivos||[]).map(o=>o.numero).join(', ');
+    const fontes = (p.fontes||[]).map(f=>`${f.n} (${fmtBRL(f.v)})`).join(' · ');
+    return `<div style="break-inside:avoid;border:1px solid #DCE3EE;border-left:4px solid ${d.cor};border-radius:8px;padding:12px 14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">
+        <b style="font-size:13.5px">${p.nome}</b>
+        <span style="white-space:nowrap;font-size:10.5px;font-weight:800;color:${d.cor}">${stLabel[p.status]} · ${p.prog}%</span>
+      </div>
+      <div style="font-size:11px;color:#5B6577;margin:4px 0 8px">${d.nome} · Líder: ${p.lider} · ${p.inicio} → ${p.fim} · ${p.prazo}</div>
+      <div style="font-size:11.5px;margin-bottom:3px"><b>Orçamento:</b> ${fmtBRL(p.orc)}${fontes?` — ${fontes}`:''}</div>
+      <div style="font-size:11.5px;margin-bottom:3px"><b>Objetivos atendidos:</b> ${objs||'—'}</div>
+      ${p.equipe&&p.equipe.length?`<div style="font-size:11px;color:#5B6577"><b>Equipe:</b> ${p.equipe.join(', ')}</div>`:''}
+      ${p.desc?`<div style="font-size:11px;color:#3a4a4e;margin-top:5px">${p.desc}</div>`:''}
+    </div>`;
+  }).join('');
+  const fichas = `<div class="sheet">${head('FICHAS DOS PROJETOS')}<div class="sheet-body">
+     <h1 class="sh">Fichas dos Projetos</h1>${blocos}
+     <div class="sh-foot">Distrito Criativo Centro-Gare · Santa Maria/RS · Relatório gerado em ${hoje} pela Plataforma de Gestão.</div>
+   </div></div>`;
+  openPrint(resumo + fichas, 'portrait');
 };
 
 // ---------- IMAGEM DO EVENTO ----------
