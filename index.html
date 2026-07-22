@@ -47,7 +47,7 @@ h1,h2,h3,h4{margin:0 0 .4em;line-height:1.2;font-weight:800;letter-spacing:-.01e
 .switch button.active{background:var(--navy);color:#fff}
 
 /* ===== VITRINE ===== */
-.hero{background:linear-gradient(90deg,#123A6B 0%,#123A6B 32%,rgba(18,58,107,.82) 46%,rgba(18,58,107,.40) 66%,rgba(18,58,107,.26) 100%),url('assets/brand/mapa-bg.jpg');
+.hero{background-image:linear-gradient(90deg,#123A6B 0%,#123A6B 32%,rgba(18,58,107,.82) 46%,rgba(18,58,107,.40) 66%,rgba(18,58,107,.26) 100%),var(--hero-img,url('assets/brand/mapa-bg.jpg'));
   background-size:cover;background-position:center center;color:#fff;position:relative;overflow:hidden}
 .hero::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
   background:linear-gradient(180deg,rgba(12,39,72,.30) 0%,transparent 28%,transparent 72%,rgba(12,39,72,.40) 100%)}
@@ -319,7 +319,7 @@ section.block.alt{background:var(--paper)}
 <div class="topbar">
   <div class="wrap">
     <div class="brand" onclick="goVitrine()">
-      <img class="logo-img" src="assets/brand/logo-distrito.png" alt="Distrito Criativo Centro-Gare">
+      <img id="topbar-logo-img" class="logo-img" src="assets/brand/logo-distrito.png" alt="Distrito Criativo Centro-Gare">
       <div class="divider"></div>
       <div><b>Plataforma de Gestão</b><span>Planejamento · Governança</span></div>
     </div>
@@ -334,7 +334,7 @@ section.block.alt{background:var(--paper)}
 <div id="view-vitrine">
   <div class="hero">
     <div class="wrap">
-      <img src="assets/brand/logo-white.png" class="hero-logo" alt="Distrito Criativo Centro-Gare — Santa Maria/RS">
+      <img id="hero-logo-img" src="assets/brand/logo-white.png" class="hero-logo" alt="Distrito Criativo Centro-Gare — Santa Maria/RS">
       <div class="eyebrow">Centro Histórico Ferroviário · Santa Maria</div>
       <h1>Onde a memória ferroviária encontra a economia criativa</h1>
       <p>Um movimento coletivo que transforma o coração histórico de Santa Maria em um lugar para viver, trabalhar, criar e se encontrar.</p>
@@ -560,7 +560,7 @@ section.block.alt{background:var(--paper)}
   <div class="footer">
     <div class="wrap">
       <div style="display:flex;align-items:center;gap:14px">
-        <span style="background:#fff;border-radius:12px;padding:10px 16px;display:inline-flex"><img src="assets/brand/logo-distrito.png" alt="Distrito Criativo Centro-Gare" style="height:40px;width:auto"></span>
+        <span style="background:#fff;border-radius:12px;padding:10px 16px;display:inline-flex"><img id="footer-logo-img" src="assets/brand/logo-distrito.png" alt="Distrito Criativo Centro-Gare" style="height:40px;width:auto"></span>
         <div><b style="display:block;font-size:15px">Distrito Criativo Centro-Gare</b><span style="opacity:.8;font-size:12.5px">Santa Maria · Rio Grande do Sul</span></div>
       </div>
       <small>Plataforma de gestão · protótipo navegável · dados públicos 2021–2026</small>
@@ -574,7 +574,7 @@ section.block.alt{background:var(--paper)}
   <!-- login -->
   <div id="gov-login">
     <form class="login-card" onsubmit="doLogin(event)">
-      <img src="assets/brand/logo-distrito.png" alt="Distrito Criativo Centro-Gare" style="height:64px;width:auto;margin-bottom:18px">
+      <img id="login-logo-img" src="assets/brand/logo-distrito.png" alt="Distrito Criativo Centro-Gare" style="height:64px;width:auto;margin-bottom:18px">
       <h2>Área de Planejamento e Governança</h2>
       <p class="sub">Acesso restrito aos atores da governança do Distrito Criativo Centro-Gare.</p>
       <div class="field"><label>E-mail institucional</label><input id="lg-user" type="email" placeholder="nome@distritocentrogare.com.br" required></div>
@@ -597,6 +597,7 @@ section.block.alt{background:var(--paper)}
           <button class="active" data-p="dashboard"><span class="ic">📊</span> Dashboard</button>
           <button data-p="planejamento"><span class="ic">🎯</span> Planejamento Estratégico</button>
           <div class="grp">Conteúdo da Vitrine</div>
+          <button data-p="cmsidentidade"><span class="ic">🎨</span> Identidade Visual</button>
           <button data-p="cmsgaleria"><span class="ic">🖼️</span> Galeria</button>
           <div class="grp">Cadastros</div>
           <button data-p="pessoas"><span class="ic">👤</span> Pessoas</button>
@@ -977,7 +978,7 @@ document.addEventListener('click',e=>{
 });
 function navGov(p){
   const m=$('#gov-main');
-  ({dashboard:pageDashboard,planejamento:pagePlanejamento,cmsgaleria:(window.pageCmsGaleria||pageDashboard),captacao:(window.pageCaptacao||pageDashboard),pessoas:pagePessoas,instituicoes:pageInstituicoes,projetos:pageProjetos,
+  ({dashboard:pageDashboard,planejamento:pagePlanejamento,cmsidentidade:(window.pageCmsIdentidade||pageDashboard),cmsgaleria:(window.pageCmsGaleria||pageDashboard),captacao:(window.pageCaptacao||pageDashboard),pessoas:pagePessoas,instituicoes:pageInstituicoes,projetos:pageProjetos,
     indicadores:pageIndicadores,orcamento:pageOrcamento,eventos:pageEventos,agenda:pageAgenda,estrutura:pageEstrutura}[p]||pageDashboard)(m);
   m.scrollTo(0,0);
 }
@@ -2076,10 +2077,260 @@ window.descartarCadastro = async function(id){
   navGov('captacao'); toast('Cadastro descartado');
 };
 
+// ---------- INDICADORES DE IMPACTO ----------
+let IMPACTO = [];
+async function hydrateImpacto(){
+  const { data } = await sb.from('indicador_impacto').select('*').order('ordem');
+  IMPACTO = data || [];
+}
+const impValor = r => r.auto==='recursos' ? PROJETOS.reduce((s,p)=>s+(p.orc||0),0)
+                    : r.auto==='publico'  ? EVENTOS.reduce((s,e)=>s+(e.publicoNum||0),0)
+                    : r.auto==='projetos_ativos' ? PROJETOS.filter(p=>p.status==='exec').length
+                    : Number(r.valor)||0;
+const impFmt = (v,f) => f==='brl' ? fmtBRL(v)
+                    : f==='mil' ? (v>=1000 ? (v/1000).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mil' : String(v))
+                    : Number(v).toLocaleString('pt-BR');
+window.pageIndicadores = async function(m){
+  await hydrateImpacto();
+  const all = []; PROJETOS.forEach(p => (p.inds||[]).forEach(i => all.push({...i, proj:p.nome, dim:p.dim})));
+  m.innerHTML = `
+   <div class="page-head"><div><h1>Indicadores de Impacto</h1><p>Os grandes resultados do Distrito, com metas mensuráveis.</p></div>
+     <button class="btn btn-ghost btn-sm" onclick="openGerirImpacto()">⚙️ Gerenciar indicadores</button></div>
+   <div class="kpis" style="grid-template-columns:repeat(4,1fr)">
+     ${IMPACTO.map(r => { const v = impValor(r); const pct = r.meta ? Math.min(100, Math.round(v/r.meta*100)) : null; return `
+       <div class="kpi" style="border-top:3px solid ${r.cor}">
+         <div style="font-size:22px;line-height:1">${r.icone||'📊'}</div>
+         <b style="color:${r.cor}">${impFmt(v, r.formato)}${r.unidade?(' '+r.unidade):''}</b>
+         <div class="lbl" style="margin-top:2px">${r.nome}</div>
+         ${pct!==null ? `<div class="progrow" style="margin:8px 0 0"><div class="track"><div class="fill" style="width:${pct}%;background:${r.cor}"></div></div></div><div style="font-size:11px;color:var(--muted);margin-top:3px">${pct}% da meta (${impFmt(r.meta, r.formato)})</div>` : ''}
+         <div style="font-size:10.5px;color:var(--muted);margin-top:5px">${r.fonte||''}</div>
+       </div>`; }).join('')}
+   </div>
+   <div class="card" style="margin-top:22px"><h3>Indicadores por projeto <small>${all.length}</small></h3>
+     ${all.map(i => { const pct = i.meta ? Math.min(100, Math.round(i.at/i.meta*100)) : 0; const d = dimById(i.dim); return `
+       <div class="progrow"><div class="top"><span>${i.n} <small style="color:var(--muted);font-weight:500">· ${i.proj.split('—')[0].split('(')[0].trim()}</small></span><span>${pct}%</span></div>
+         <div class="track"><div class="fill" style="width:${pct}%;background:${pct>=100?'#82BA26':(d?d.cor:'#1A9BD7')}"></div></div></div>`; }).join('') || '<p style="color:var(--muted)">Sem indicadores por projeto.</p>'}
+   </div>`;
+};
+window.openGerirImpacto = function(){
+  document.getElementById('modal-content').innerHTML = `
+   <div class="mhead"><div><h2>Gerenciar indicadores de impacto</h2><span style="font-size:12.5px;color:var(--muted)">Edite os números e metas do topo da página</span></div><button class="x" onclick="closeModal()">&times;</button></div>
+   <div class="mbody">
+     <button class="btn btn-primary btn-sm" onclick="openEditImpacto()">+ Novo indicador</button>
+     <div style="margin-top:14px">${IMPACTO.map(r => `
+       <div class="act"><div class="a-top"><b>${r.icone||'📊'} ${r.nome}</b>
+         <span style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm" onclick="openEditImpacto('${r.id}')">Editar</button>
+         <button class="btn btn-ghost btn-sm" style="color:#DD0079;border-color:#f3c6dd" onclick="deleteImpacto('${r.id}')">Excluir</button></span></div>
+         <div class="meta">${r.auto?('calculado automaticamente ('+r.auto+')'):('valor: '+r.valor)} · meta: ${r.meta||'—'}</div></div>`).join('')}</div>
+   </div>`;
+  document.getElementById('modal-bg').classList.add('open');
+};
+window.openEditImpacto = function(id){
+  const r = IMPACTO.find(x => x.id === id) || {nome:'',icone:'📊',valor:0,meta:'',unidade:'',fonte:'',auto:'',formato:'num',cor:'#1A9BD7',ordem:(IMPACTO.length+1)};
+  document.getElementById('modal-content').innerHTML = `
+   <div class="mhead"><div><h2>${id?'Editar':'Novo'} indicador</h2></div><button class="x" onclick="closeModal()">&times;</button></div>
+   <div class="mbody">
+     <div class="mrow" style="grid-template-columns:3fr 1fr">
+       <div class="field"><label>Nome</label><input id="ii-nome" value="${(r.nome||'').replace(/"/g,'&quot;')}"></div>
+       <div class="field"><label>Ícone</label><input id="ii-icone" value="${r.icone||''}"></div>
+     </div>
+     <div class="mrow" style="grid-template-columns:1fr 1fr 1fr">
+       <div class="field"><label>Valor</label><input id="ii-valor" type="number" value="${r.valor||0}"></div>
+       <div class="field"><label>Meta</label><input id="ii-meta" type="number" value="${r.meta||''}"></div>
+       <div class="field"><label>Unidade</label><input id="ii-unidade" value="${r.unidade||''}"></div>
+     </div>
+     <div class="mrow" style="grid-template-columns:1fr 1fr 1fr">
+       <div class="field"><label>Formato</label><select id="ii-formato"><option value="num" ${r.formato==='num'?'selected':''}>Número</option><option value="brl" ${r.formato==='brl'?'selected':''}>R$</option><option value="mil" ${r.formato==='mil'?'selected':''}>Milhares</option></select></div>
+       <div class="field"><label>Cálculo</label><select id="ii-auto"><option value="" ${!r.auto?'selected':''}>Manual</option><option value="recursos" ${r.auto==='recursos'?'selected':''}>Recursos (soma)</option><option value="publico" ${r.auto==='publico'?'selected':''}>Público de eventos</option><option value="projetos_ativos" ${r.auto==='projetos_ativos'?'selected':''}>Projetos ativos</option></select></div>
+       <div class="field"><label>Cor</label><input id="ii-cor" type="color" value="${r.cor||'#1A9BD7'}" style="height:42px;padding:2px"></div>
+     </div>
+     <div class="field"><label>Fonte / descrição</label><input id="ii-fonte" value="${(r.fonte||'').replace(/"/g,'&quot;')}"></div>
+     <div class="field"><label>Ordem</label><input id="ii-ordem" type="number" value="${r.ordem||0}"></div>
+     <button class="btn btn-primary" onclick="saveImpacto(${id?`'${id}'`:'null'})">Salvar</button>
+   </div>`;
+  document.getElementById('modal-bg').classList.add('open');
+};
+window.saveImpacto = async function(id){
+  const payload = { nome:document.getElementById('ii-nome').value.trim(), icone:document.getElementById('ii-icone').value||'📊',
+    valor:Number(document.getElementById('ii-valor').value)||0, meta:document.getElementById('ii-meta').value?Number(document.getElementById('ii-meta').value):null,
+    unidade:document.getElementById('ii-unidade').value, formato:document.getElementById('ii-formato').value,
+    auto:document.getElementById('ii-auto').value||null, cor:document.getElementById('ii-cor').value,
+    fonte:document.getElementById('ii-fonte').value, ordem:Number(document.getElementById('ii-ordem').value)||0 };
+  if(!payload.nome){ toast('Informe o nome'); return; }
+  const { error } = id ? await sb.from('indicador_impacto').update(payload).eq('id', id)
+                       : await sb.from('indicador_impacto').insert(payload);
+  if(error){ toast('Erro ao salvar: '+error.message); return; }
+  closeModal(); await hydrateImpacto(); navGov('indicadores'); toast('✓ Indicador salvo');
+};
+window.deleteImpacto = async function(id){
+  if(!confirm('Excluir este indicador?')) return;
+  const { error } = await sb.from('indicador_impacto').delete().eq('id', id);
+  if(error){ toast('Erro ao excluir: '+error.message); return; }
+  closeModal(); await hydrateImpacto(); navGov('indicadores'); toast('✓ Indicador excluído');
+};
+
+// ---------- CONTEÚDO DA VITRINE: IDENTIDADE VISUAL ----------
+let SITECFG = {};
+async function hydrateIdentidade(){
+  const { data } = await sb.from('site_config').select('*').eq('id','main').single();
+  if(data){ SITECFG = data; applyIdentidade(data); }
+}
+function applyIdentidade(c){
+  const set = (id,url) => { const el = document.getElementById(id); if(el && url) el.src = url; };
+  set('topbar-logo-img', c.logo_url); set('login-logo-img', c.logo_url); set('footer-logo-img', c.logo_url);
+  set('hero-logo-img', c.logo_white_url);
+  const root = document.documentElement.style;
+  if(c.hero_bg_url)    root.setProperty('--hero-img', `url('${c.hero_bg_url}')`);
+  if(c.cor_primaria){  root.setProperty('--petrol', c.cor_primaria);  root.setProperty('--navy', c.cor_primaria); }
+  if(c.cor_secundaria){root.setProperty('--petrol-2', c.cor_secundaria); root.setProperty('--blue', c.cor_secundaria); }
+  if(c.cor_destaque)   root.setProperty('--brick', c.cor_destaque);
+  if(c.cor_dourada){   root.setProperty('--gold', c.cor_dourada);     root.setProperty('--amber', c.cor_dourada); }
+}
+window.pageCmsIdentidade = function(m){
+  const c = SITECFG || {};
+  m.innerHTML = `
+   <div class="page-head"><div><h1>Identidade Visual</h1><p>Troque a logomarca, o fundo do topo e as cores do site.</p></div></div>
+   <div class="grid2">
+     <div class="card"><h3>Logomarcas</h3>
+       <div class="field"><label>Logo (fundo claro) — topo, login e rodapé</label><input id="id-logo" type="file" accept="image/*"></div>
+       <img src="${c.logo_url||''}" style="max-height:48px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px" onerror="this.style.display='none'">
+       <div class="field" style="margin-top:16px"><label>Logo branca (fundo escuro) — hero</label><input id="id-logow" type="file" accept="image/*"></div>
+       <span style="background:#123A6B;border-radius:8px;padding:6px;display:inline-block"><img src="${c.logo_white_url||''}" style="max-height:48px" onerror="this.style.display='none'"></span>
+     </div>
+     <div class="card"><h3>Fundo do topo (hero)</h3>
+       <div class="field"><label>Nova imagem (mapa ou foto)</label><input id="id-hero" type="file" accept="image/*"></div>
+       <img src="${c.hero_bg_url||''}" style="max-width:100%;border-radius:8px" onerror="this.style.display='none'">
+     </div>
+   </div>
+   <div class="card" style="margin-top:16px"><h3>Cores da marca</h3>
+     <div class="grid3" style="grid-template-columns:repeat(4,1fr)">
+       <div class="field"><label>Primária</label><input id="id-c1" type="color" value="${c.cor_primaria||'#123A6B'}" style="height:44px;padding:2px"></div>
+       <div class="field"><label>Secundária</label><input id="id-c2" type="color" value="${c.cor_secundaria||'#1A9BD7'}" style="height:44px;padding:2px"></div>
+       <div class="field"><label>Destaque</label><input id="id-c3" type="color" value="${c.cor_destaque||'#DD0079'}" style="height:44px;padding:2px"></div>
+       <div class="field"><label>Dourada</label><input id="id-c4" type="color" value="${c.cor_dourada||'#EFA81C'}" style="height:44px;padding:2px"></div>
+     </div>
+     <button class="btn btn-primary" id="id-save" onclick="saveIdentidade()">💾 Salvar identidade</button>
+     <span style="font-size:12px;color:var(--muted);margin-left:10px">As logos aplicam na hora; recarregue para ver o hero e cores em todo o site.</span>
+   </div>`;
+};
+async function uploadMarca(file){
+  const path = Date.now() + '_' + file.name.replace(/[^\w.\-]/g,'_');
+  const up = await sb.storage.from('marca').upload(path, file);
+  if(up.error) throw up.error;
+  return sb.storage.from('marca').getPublicUrl(path).data.publicUrl;
+}
+window.saveIdentidade = async function(){
+  const btn = document.getElementById('id-save'); if(btn){ btn.disabled = true; btn.textContent = 'Salvando…'; }
+  try{
+    const patch = { cor_primaria:document.getElementById('id-c1').value, cor_secundaria:document.getElementById('id-c2').value,
+      cor_destaque:document.getElementById('id-c3').value, cor_dourada:document.getElementById('id-c4').value, updated_at:new Date().toISOString() };
+    const fl = document.getElementById('id-logo').files[0];  if(fl) patch.logo_url = await uploadMarca(fl);
+    const fw = document.getElementById('id-logow').files[0]; if(fw) patch.logo_white_url = await uploadMarca(fw);
+    const fh = document.getElementById('id-hero').files[0];  if(fh) patch.hero_bg_url = await uploadMarca(fh);
+    const { error } = await sb.from('site_config').update(patch).eq('id','main');
+    if(error) throw error;
+    await hydrateIdentidade(); navGov('cmsidentidade'); toast('✓ Identidade atualizada');
+  }catch(e){ toast('Erro: ' + (e.message||e)); }
+  if(btn){ btn.disabled = false; btn.textContent = '💾 Salvar identidade'; }
+};
+
+// ---------- ESTRUTURA DE GOVERNANÇA (editável) ----------
+let COMITES = [];
+const TIPO_COMITE = {assembleia:'Assembleia Colegiada', gestor:'Comitê Gestor', coordenacao:'Coordenação Executiva', executivo:'Comitê Executivo', grupo_trabalho:'Grupo de Trabalho'};
+const PAPEL_COMITE = {coordenador:'Coordenador', lider:'Líder', membro:'Membro'};
+const TIPO_RANK = {assembleia:0, gestor:1, coordenacao:2, executivo:3, grupo_trabalho:4};
+async function hydrateComites(){
+  const { data } = await sb.from('comite').select('*, pessoa_comite(papel, pessoa(id,nome,cargo))');
+  COMITES = (data||[]).map(c => ({ id:c.id, tipo:c.tipo, nome:c.nome, dim:dimSlugById[c.dimensao_id]||'',
+    membros:(c.pessoa_comite||[]).map(pc => pc.pessoa && ({ pdbid:pc.pessoa.id, nome:pc.pessoa.nome, cargo:pc.pessoa.cargo, papel:pc.papel })).filter(Boolean) }))
+    .sort((a,b)=> (TIPO_RANK[a.tipo]-TIPO_RANK[b.tipo]) || a.nome.localeCompare(b.nome));
+}
+window.pageEstrutura = async function(m){
+  await hydrateComites();
+  m.innerHTML = `
+   <div class="page-head"><div><h1>Estrutura de Governança</h1><p>Gerencie os comitês e quem participa de cada um.</p></div>
+     <button class="btn btn-primary btn-sm" onclick="openNewComite()">+ Novo comitê / grupo</button></div>
+   <div class="card" style="margin-bottom:18px">
+     <div class="gov-tree">
+       <div class="node top">Assembleia Colegiada</div><div class="conn"></div>
+       <div class="row"><div class="node">Comitê Gestor</div><div class="node">Coordenação Executiva</div></div><div class="conn"></div>
+       <div class="node" style="border-color:var(--brick);color:var(--brick)">Comitês Executivos (4 dimensões)</div><div class="conn"></div>
+       <div class="node" style="font-size:12px;border-style:dashed">Grupos de Trabalho</div>
+     </div>
+   </div>
+   ${COMITES.map(c => `
+     <div class="card" style="margin-bottom:12px">
+       <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+         <div><h3 style="margin:0">${c.nome}</h3><div style="font-size:12px;color:var(--muted)">${TIPO_COMITE[c.tipo]||c.tipo}${c.dim&&dimById(c.dim)?(' · '+dimById(c.dim).nome):''} · ${c.membros.length} membro(s)</div></div>
+         <div style="display:flex;gap:6px">
+           <button class="btn btn-primary btn-sm" onclick="openAddMembro('${c.id}')">+ Membro</button>
+           <button class="btn btn-ghost btn-sm" onclick="openNewComite('${c.id}')">Editar</button>
+           <button class="btn btn-ghost btn-sm" style="color:#DD0079;border-color:#f3c6dd" onclick="deleteComite('${c.id}')">Excluir</button>
+         </div>
+       </div>
+       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">
+         ${c.membros.length ? c.membros.map(mb => `
+           <span style="display:inline-flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:99px;padding:4px 6px 4px 12px;font-size:13px">
+             <b style="font-weight:600">${mb.nome}</b><small style="color:var(--muted)">${PAPEL_COMITE[mb.papel]||mb.papel}</small>
+             <button title="Remover" onclick="removeMembro('${c.id}','${mb.pdbid}')" style="width:22px;height:22px;border-radius:50%;border:none;background:var(--cream);color:#DD0079;cursor:pointer;font-size:14px;line-height:1">×</button>
+           </span>`).join('') : '<span style="color:var(--muted);font-size:13px">Sem membros ainda — clique em “+ Membro”.</span>'}
+       </div>
+     </div>`).join('')}`;
+};
+window.openAddMembro = function(comiteId){
+  document.getElementById('modal-content').innerHTML = `
+   <div class="mhead"><div><h2>Adicionar membro</h2></div><button class="x" onclick="closeModal()">&times;</button></div>
+   <div class="mbody">
+     <div class="field"><label>Pessoa</label><select id="am-pessoa">${PESSOAS.map(p=>`<option value="${p.id}">${p.nome}${p.cargo?(' — '+p.cargo):''}</option>`).join('')}</select></div>
+     <div class="field"><label>Papel</label><select id="am-papel">${Object.entries(PAPEL_COMITE).map(([k,v])=>`<option value="${k}">${v}</option>`).join('')}</select></div>
+     <button class="btn btn-primary" onclick="salvarMembro('${comiteId}')">Adicionar ao comitê</button>
+   </div>`;
+  document.getElementById('modal-bg').classList.add('open');
+};
+window.salvarMembro = async function(comiteId){
+  const p = pById(document.getElementById('am-pessoa').value); if(!p){ toast('Selecione a pessoa'); return; }
+  const { error } = await sb.from('pessoa_comite').insert({ comite_id:comiteId, pessoa_id:p.dbid, papel:document.getElementById('am-papel').value });
+  if(error){ toast(error.code==='23505' ? 'Essa pessoa já está no comitê' : 'Erro: '+error.message); return; }
+  closeModal(); navGov('estrutura'); toast('✓ Membro adicionado');
+};
+window.removeMembro = async function(comiteId, pessoaDbid){
+  const { error } = await sb.from('pessoa_comite').delete().eq('comite_id', comiteId).eq('pessoa_id', pessoaDbid);
+  if(error){ toast('Erro: '+error.message); return; }
+  navGov('estrutura'); toast('Membro removido');
+};
+window.openNewComite = function(id){
+  const c = COMITES.find(x=>x.id===id) || {nome:'', tipo:'grupo_trabalho', dim:''};
+  document.getElementById('modal-content').innerHTML = `
+   <div class="mhead"><div><h2>${id?'Editar':'Novo'} comitê / grupo</h2></div><button class="x" onclick="closeModal()">&times;</button></div>
+   <div class="mbody">
+     <div class="field"><label>Nome</label><input id="nc-nome" value="${(c.nome||'').replace(/"/g,'&quot;')}" placeholder="Ex.: Grupo de Trabalho — Gare"></div>
+     <div class="mrow" style="grid-template-columns:1fr 1fr">
+       <div class="field"><label>Tipo</label><select id="nc-tipo">${Object.entries(TIPO_COMITE).map(([k,v])=>`<option value="${k}" ${k===c.tipo?'selected':''}>${v}</option>`).join('')}</select></div>
+       <div class="field"><label>Dimensão (opcional)</label><select id="nc-dim"><option value="">—</option>${DIMS.map(d=>`<option value="${d.id}" ${d.id===c.dim?'selected':''}>${d.nome}</option>`).join('')}</select></div>
+     </div>
+     <button class="btn btn-primary" onclick="saveComite(${id?`'${id}'`:'null'})">Salvar</button>
+   </div>`;
+  document.getElementById('modal-bg').classList.add('open');
+};
+window.saveComite = async function(id){
+  const nome = document.getElementById('nc-nome').value.trim(); if(!nome){ toast('Informe o nome'); return; }
+  const payload = { nome, tipo:document.getElementById('nc-tipo').value, dimensao_id:slugToDimId(document.getElementById('nc-dim').value) };
+  const { error } = id ? await sb.from('comite').update(payload).eq('id', id) : await sb.from('comite').insert(payload);
+  if(error){ toast('Erro: '+error.message); return; }
+  closeModal(); navGov('estrutura'); toast('✓ Comitê salvo');
+};
+window.deleteComite = async function(id){
+  if(!confirm('Excluir este comitê e suas participações?')) return;
+  const { error } = await sb.from('comite').delete().eq('id', id);
+  if(error){ toast('Erro: '+error.message); return; }
+  navGov('estrutura'); toast('Comitê excluído');
+};
+
 // ---------- BOOT ----------
 (async () => {
   if(location.hash.toLowerCase().includes('cadastro')){ showCadastro(); return; }  // link público: só o formulário
   injectPrintInfra();
+  await hydrateIdentidade();
   await loadDimMap();
   await hydrateEventos();
   await hydrateGaleria();
