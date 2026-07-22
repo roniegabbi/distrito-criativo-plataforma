@@ -1034,7 +1034,7 @@ function pagePlanejamento(m){
 function pageProjetos(m){
   m.innerHTML=`
    <div class="page-head"><div><h1>Projetos & Processos</h1><p>Gestão de projetos com ações, prazos, líder, equipe, orçamento e fontes de recursos.</p></div>
-     <button class="btn btn-primary btn-sm" onclick="openNewProj()">+ Novo projeto</button></div>
+     <div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" onclick="projGantt()">🗓️ Gantt (tempo)</button><button class="btn btn-primary btn-sm" onclick="openNewProj()">+ Novo projeto</button></div></div>
    <div class="toolbar">
      <input id="pf-q" placeholder="🔍 Buscar projeto…" oninput="filterProj()">
      <select id="pf-dim" onchange="filterProj()"><option value="">Todas as dimensões</option>${DIMS.map(d=>`<option value="${d.id}">${d.nome}</option>`).join('')}</select>
@@ -1115,7 +1115,11 @@ function openNewProj(){
        <div class="field"><label>Líder do projeto</label><select id="np-lider"><option value="">Selecione…</option>${PESSOAS.map(p=>`<option value="${p.id}">${p.nome} — ${instById(p.inst)?instById(p.inst).sigla:''}</option>`).join('')}</select></div>
        <div class="field"><label>Prazo</label><input id="np-prazo" placeholder="Ex.: 12 meses"></div>
      </div>
-     <div class="field"><label>Orçamento (R$)</label><input id="np-orc" type="number" placeholder="0"></div>
+     <div class="mrow" style="grid-template-columns:1fr 1fr 1fr">
+       <div class="field"><label>Início (Gantt)</label><input id="np-ini" type="date"></div>
+       <div class="field"><label>Término (Gantt)</label><input id="np-fim" type="date"></div>
+       <div class="field"><label>Orçamento (R$)</label><input id="np-orc" type="number" placeholder="0"></div>
+     </div>
      <div class="field"><label>Equipe do projeto <span style="color:var(--muted);font-weight:400">(selecione as pessoas)</span></label>
        <div class="pick-list">${PESSOAS.map(p=>`<label class="pick"><input type="checkbox" class="np-team" value="${p.id}"> <i class="cad-av" style="width:26px;height:26px;font-size:10px;background:${pDimCor(p.dim)}">${initials(p.nome)}</i> ${p.nome} <small>${p.cargo}</small></label>`).join('')}</div>
      </div>
@@ -1663,6 +1667,7 @@ async function hydrateProjetos(){
     desc:p.descricao||'', lider:(p.lider&&p.lider.nome)||'A definir', liderCargo:(p.lider&&p.lider.cargo)||'—',
     equipe:(p.projeto_equipe||[]).map(e => e.pessoa && e.pessoa.nome).filter(Boolean),
     objetivos:(p.projeto_objetivo||[]).map(po => po.objetivo_estrategico && ({numero:po.objetivo_estrategico.numero, titulo:po.objetivo_estrategico.titulo})).filter(Boolean).sort((a,b)=>a.numero-b.numero),
+    di:p.data_inicio||null, df:p.data_fim||null,
     inicio:p.inicio||'—', fim:p.fim||'—', prazo:p.prazo||'—', orc:Number(p.orcamento)||0,
     fontes:(p.fonte_recurso||[]).map(f => ({ t:f.natureza==='publica'?'Pública':'Privada', n:f.nome, v:Number(f.valor)||0 })),
     acoes:(p.acao||[]).map(a => ({ n:a.nome, resp:a.responsavel||'—', prazo:a.prazo||'—', st:ST_DB2P[a.status]||'plan', p:a.progresso||0 })),
@@ -1737,6 +1742,7 @@ window.saveProj = async function(){
     nome, dimensao_id:slugToDimId(document.getElementById('np-dim').value), status:ST_P2DB[st]||'planejado',
     progresso: st==='done'?100:0, descricao:document.getElementById('np-desc').value,
     lider_id: (pById(document.getElementById('np-lider').value)||{}).dbid||null, prazo:document.getElementById('np-prazo').value,
+    data_inicio:document.getElementById('np-ini').value||null, data_fim:document.getElementById('np-fim').value||null,
     orcamento:Number(document.getElementById('np-orc').value)||0 }).select('id').single();
   if(error){ toast('Erro ao salvar: '+error.message); return; }
   const team = [...document.querySelectorAll('.np-team:checked')].map(c=>({ projeto_id:data.id, pessoa_id:(pById(c.value)||{}).dbid })).filter(t=>t.pessoa_id);
@@ -2497,6 +2503,57 @@ window.exportarMapa = async function(){
       <div style="margin-top:10px;font-size:8.5px;color:#8a94a3;text-align:right">Distrito Criativo Centro-Gare · Santa Maria/RS · Mapa Estratégico gerado em ${new Date().toLocaleDateString('pt-BR')} pela Plataforma de Gestão.</div>
     </div></div>`;
   openPrint(html, 'landscape');
+};
+
+// ---------- GANTT (projetos por tempo) ----------
+function injectGanttCss(){
+  if(document.getElementById('gantt-css')) return;
+  document.head.insertAdjacentHTML('beforeend', `<style id="gantt-css">
+    .gantt{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+    .g-row{display:flex;align-items:stretch;border-bottom:1px solid var(--line)}
+    .g-row:last-child{border-bottom:none}
+    .g-head{background:var(--cream)}
+    .g-name{width:240px;flex-shrink:0;padding:8px 10px;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-right:1px solid var(--line);display:flex;align-items:center}
+    .g-track{position:relative;flex:1;min-height:34px}
+    .g-head .g-track{min-height:26px}
+    .g-year{position:absolute;top:0;bottom:0;border-left:1px solid var(--line);font-size:11px;color:var(--muted);padding:5px 0 0 5px;box-sizing:border-box}
+    .g-bar{position:absolute;top:7px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:flex-end;padding-right:7px;box-shadow:0 1px 3px rgba(0,0,0,.18);min-width:8px}
+    .g-bar span{font-size:10px;color:#fff;font-weight:700;white-space:nowrap;overflow:hidden}
+    .g-today{position:absolute;top:0;bottom:0;width:2px;background:#DD0079;z-index:2}
+  </style>`);
+}
+window.projGantt = function(){
+  injectGanttCss();
+  const wrap = document.getElementById('proj-table-wrap'); if(!wrap) return;
+  const list = PROJETOS.filter(p => p.di && p.df);
+  if(!list.length){ wrap.innerHTML = '<p style="padding:16px;color:var(--muted)">Nenhum projeto com datas definidas ainda. Informe Início e Término ao cadastrar um projeto (ou rode a migração de datas).</p>'; return; }
+  const toD = s => +new Date(s + 'T00:00:00');
+  const minY = new Date(Math.min(...list.map(p=>toD(p.di)))).getFullYear();
+  const maxY = new Date(Math.max(...list.map(p=>toD(p.df)))).getFullYear();
+  const rangeStart = +new Date(minY,0,1), rangeEnd = +new Date(maxY+1,0,1), range = rangeEnd-rangeStart;
+  const pct = t => ((t-rangeStart)/range*100);
+  const today = Date.now();
+  const todayLine = (today>=rangeStart&&today<=rangeEnd) ? `<div class="g-today" style="left:${pct(today).toFixed(2)}%"></div>` : '';
+  const years = []; for(let y=minY;y<=maxY;y++) years.push(y);
+  const yearCols = years.map(y=>{ const l=pct(+new Date(y,0,1)); const w=pct(+new Date(y+1,0,1))-l; return `<div class="g-year" style="left:${l.toFixed(2)}%;width:${w.toFixed(2)}%">${y}</div>`; }).join('');
+  const rows = [...list].sort((a,b)=>toD(a.di)-toD(b.di)).map(p=>{
+    const d = dimById(p.dim) || {cor:'#1A9BD7'};
+    const l = pct(toD(p.di)); const w = Math.max(1.5, pct(toD(p.df))-l);
+    const op = p.status==='done' ? '' : (p.status==='plan' ? '99' : 'dd');
+    return `<div class="g-row">
+      <div class="g-name" title="${p.nome}"><span style="width:8px;height:8px;border-radius:2px;background:${d.cor};display:inline-block;margin-right:7px;flex-shrink:0"></span>${p.nome}</div>
+      <div class="g-track">${todayLine}<div class="g-bar" style="left:${l.toFixed(2)}%;width:${w.toFixed(2)}%;background:${d.cor}${op}" title="${p.di} → ${p.df} · ${stLabel[p.status]}"><span>${p.prog}%</span></div></div>
+    </div>`;
+  }).join('');
+  wrap.innerHTML = `
+   <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 6px">
+     <span style="font-size:13px;color:var(--muted)">${list.length} projetos · ${minY}–${maxY} · <span style="color:#DD0079;font-weight:700">| hoje</span></span>
+     <button class="btn btn-ghost btn-sm" onclick="navGov('projetos')">▤ Voltar à tabela</button>
+   </div>
+   <div class="gantt">
+     <div class="g-row g-head"><div class="g-name">Projeto</div><div class="g-track">${todayLine}${yearCols}</div></div>
+     ${rows}
+   </div>`;
 };
 
 // ---------- BOOT ----------
