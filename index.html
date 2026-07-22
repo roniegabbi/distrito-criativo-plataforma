@@ -1901,7 +1901,9 @@ function openPrint(html, orient){
   injectPrintInfra();
   document.getElementById('page-orient').textContent = `@page{ size:A4 ${orient||'portrait'}; margin:0; }`;
   document.getElementById('print-area').innerHTML = html;
-  setTimeout(() => window.print(), 250);
+  // impressão síncrona no gesto do clique (evita bloqueio em Safari/Firefox)
+  try { window.print(); }
+  catch(e){ setTimeout(() => window.print(), 100); }
 }
 window.fichaProjeto = function(id){
   const p = PROJETOS.find(x => x.id == id); if(!p) return;
