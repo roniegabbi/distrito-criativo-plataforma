@@ -1079,6 +1079,9 @@ function openProj(id){
         <div class="mfield"><div class="k">Período</div><div class="v">${p.inicio} → ${p.fim}</div><div style="font-size:12px;color:var(--muted)">${p.prazo}</div></div>
         <div class="mfield"><div class="k">Orçamento total</div><div class="v">${fmtBRL(p.orc)}</div><div style="font-size:12px;color:var(--muted)">${Math.round(pub/p.orc*100)}% público · ${Math.round(priv/p.orc*100)}% privado</div></div>
       </div>
+      <div class="msec"><h4>🎯 Objetivos estratégicos atendidos</h4>
+        ${(p.objetivos&&p.objetivos.length)?p.objetivos.map(o=>`<div class="act"><b style="color:var(--brick)">${o.numero}.</b> ${o.titulo}</div>`).join(''):'<p style="color:var(--muted);font-size:13.5px">Nenhum objetivo vinculado ainda.</p>'}
+      </div>
       <div class="msec"><h4>👥 Equipe do projeto</h4><div class="team">
         <div class="av"><i>${initials(p.lider)}</i>${p.lider}</div>
         ${p.equipe.map(e=>`<div class="av"><i>${initials(e)}</i>${e}</div>`).join('')}</div></div>
@@ -1115,6 +1118,9 @@ function openNewProj(){
      <div class="field"><label>Orçamento (R$)</label><input id="np-orc" type="number" placeholder="0"></div>
      <div class="field"><label>Equipe do projeto <span style="color:var(--muted);font-weight:400">(selecione as pessoas)</span></label>
        <div class="pick-list">${PESSOAS.map(p=>`<label class="pick"><input type="checkbox" class="np-team" value="${p.id}"> <i class="cad-av" style="width:26px;height:26px;font-size:10px;background:${pDimCor(p.dim)}">${initials(p.nome)}</i> ${p.nome} <small>${p.cargo}</small></label>`).join('')}</div>
+     </div>
+     <div class="field"><label>Objetivos estratégicos atendidos <span style="color:var(--muted);font-weight:400">(marque os do plano)</span></label>
+       <div class="pick-list" style="max-height:230px">${DIMS.map(d=>{const os=(window.OBJETIVOS||[]).filter(o=>o.dim===d.id);return os.length?`<div style="font-size:10.5px;font-weight:800;color:${d.cor};text-transform:uppercase;letter-spacing:.5px;padding:8px 8px 3px">${d.nome}</div>`+os.map(o=>`<label class="pick"><input type="checkbox" class="np-obj" value="${o.id}"> <b style="color:${d.cor}">${o.numero}.</b> ${o.titulo}</label>`).join(''):'';}).join('')||'<div style="padding:10px;color:var(--muted);font-size:13px">Objetivos carregam após entrar na área.</div>'}</div>
      </div>
      <div class="field"><label>Descrição</label><textarea id="np-desc" placeholder="Objetivo e escopo do projeto…"></textarea></div>
      <button class="btn btn-primary" onclick="saveProj()">Salvar projeto</button>
@@ -1648,7 +1654,7 @@ async function hydratePessoas(){
 }
 async function hydrateProjetos(){
   const {data} = await sb.from('projeto')
-    .select('*, fonte_recurso(*), acao(*), indicador(*), projeto_equipe(pessoa(nome)), lider:pessoa(nome,cargo)')
+    .select('*, fonte_recurso(*), acao(*), indicador(*), projeto_equipe(pessoa(nome)), projeto_objetivo(objetivo_estrategico(numero,titulo)), lider:pessoa(nome,cargo)')
     .order('created_at');
   if(!data) return;
   PROJETOS.length = 0; let n = 0;
@@ -1656,6 +1662,7 @@ async function hydrateProjetos(){
     id:++n, dbid:p.id, nome:p.nome, dim:dimSlugById[p.dimensao_id]||'', status:ST_DB2P[p.status]||'plan', prog:p.progresso||0,
     desc:p.descricao||'', lider:(p.lider&&p.lider.nome)||'A definir', liderCargo:(p.lider&&p.lider.cargo)||'—',
     equipe:(p.projeto_equipe||[]).map(e => e.pessoa && e.pessoa.nome).filter(Boolean),
+    objetivos:(p.projeto_objetivo||[]).map(po => po.objetivo_estrategico && ({numero:po.objetivo_estrategico.numero, titulo:po.objetivo_estrategico.titulo})).filter(Boolean).sort((a,b)=>a.numero-b.numero),
     inicio:p.inicio||'—', fim:p.fim||'—', prazo:p.prazo||'—', orc:Number(p.orcamento)||0,
     fontes:(p.fonte_recurso||[]).map(f => ({ t:f.natureza==='publica'?'Pública':'Privada', n:f.nome, v:Number(f.valor)||0 })),
     acoes:(p.acao||[]).map(a => ({ n:a.nome, resp:a.responsavel||'—', prazo:a.prazo||'—', st:ST_DB2P[a.status]||'plan', p:a.progresso||0 })),
@@ -1664,6 +1671,7 @@ async function hydrateProjetos(){
 }
 async function hydrateGov(){
   await loadDimMap();
+  await hydrateObjetivos();      // objetivos disponíveis para o form de projeto
   await hydrateInstituicoes();   // antes de pessoas (mapeia instByUuid)
   await hydratePessoas();
   await hydrateProjetos();
@@ -1733,7 +1741,9 @@ window.saveProj = async function(){
   if(error){ toast('Erro ao salvar: '+error.message); return; }
   const team = [...document.querySelectorAll('.np-team:checked')].map(c=>({ projeto_id:data.id, pessoa_id:(pById(c.value)||{}).dbid })).filter(t=>t.pessoa_id);
   if(team.length) await sb.from('projeto_equipe').insert(team);
-  closeModal(); await hydrateProjetos(); navGov('projetos'); toast('✓ Projeto criado no banco — equipe vinculada');
+  const objs = [...document.querySelectorAll('.np-obj:checked')].map(c=>({ projeto_id:data.id, objetivo_id:c.value }));
+  if(objs.length) await sb.from('projeto_objetivo').insert(objs);
+  closeModal(); await hydrateProjetos(); navGov('projetos'); toast('✓ Projeto criado — equipe e objetivos vinculados');
 };
 
 // ---------- EDITAR / EXCLUIR: PESSOAS ----------
@@ -1921,6 +1931,8 @@ window.fichaProjeto = function(id){
       </div>
       <h3 class="sh">Descrição</h3>
       <p style="font-size:13px;line-height:1.55;margin:0">${p.desc||'—'}</p>
+      <h3 class="sh">Objetivos estratégicos atendidos</h3>
+      <div>${(p.objetivos&&p.objetivos.length)?p.objetivos.map(o=>`<div style="font-size:12px;margin-bottom:3px"><b style="color:${d.cor}">${o.numero}.</b> ${o.titulo}</div>`).join(''):'<span style="color:#8a94a3;font-size:12px">Nenhum objetivo vinculado</span>'}</div>
       <h3 class="sh">Equipe</h3>
       <div>${(p.equipe&&p.equipe.length)?p.equipe.map(e=>`<span class="chip2">${e}</span>`).join(''):'<span style="color:#8a94a3;font-size:12px">Não definida</span>'}</div>
       <h3 class="sh">Fontes de recursos</h3>
@@ -2338,10 +2350,13 @@ const FILOSOFIA = {
 let OBJETIVOS = [];
 async function hydrateObjetivos(){
   const { data } = await sb.from('objetivo_estrategico').select('*').order('numero');
-  OBJETIVOS = (data||[]).map(o => ({ numero:o.numero, titulo:o.titulo, dim:dimSlugById[o.dimensao_id]||'' }));
+  OBJETIVOS = (data||[]).map(o => ({ id:o.id, numero:o.numero, titulo:o.titulo, dim:dimSlugById[o.dimensao_id]||'' }));
+  window.OBJETIVOS = OBJETIVOS;
 }
 window.pageMapa = async function(m){
   await hydrateObjetivos();
+  const objCount = {}; PROJETOS.forEach(p => (p.objetivos||[]).forEach(o => objCount[o.numero] = (objCount[o.numero]||0)+1));
+  const cobertos = Object.keys(objCount).length;
   m.innerHTML = `
    <div class="page-head"><div><h1>Mapa Estratégico</h1><p>Visão, missão e os objetivos estratégicos por dimensão — no estilo Balanced Scorecard.</p></div>
      <div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="exportarMapa()">🖨️ Exportar (A4 paisagem)</button><button class="btn btn-ghost btn-sm" onclick="navGov('livro')">📕 Livro</button></div></div>
@@ -2353,12 +2368,15 @@ window.pageMapa = async function(m){
      <div class="card"><div style="font-size:11px;letter-spacing:1.5px;color:var(--brick);font-weight:800">MISSÃO</div><p style="font-size:13.5px;color:var(--muted);margin:6px 0 0;line-height:1.5">${FILOSOFIA.missao}</p></div>
      <div class="card"><div style="font-size:11px;letter-spacing:1.5px;color:var(--brick);font-weight:800">VALORES</div><div class="chips" style="margin-top:8px">${FILOSOFIA.valores.map(v=>`<span class="chip">${v}</span>`).join('')}</div></div>
    </div>
-   <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin:6px 0 10px">Perspectivas · Objetivos Estratégicos</div>
+   <div style="display:flex;justify-content:space-between;align-items:center;margin:6px 0 10px">
+     <span style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:700">Perspectivas · Objetivos Estratégicos</span>
+     <span class="chip" style="background:#e6f2ee;color:var(--ok);font-weight:700">🎯 ${cobertos} de 41 objetivos com projeto</span>
+   </div>
    ${DIMS.map(d => { const objs = OBJETIVOS.filter(o => o.dim===d.id); return `
      <div class="card" style="margin-bottom:12px;border-left:6px solid ${d.cor}">
        <div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">${d.nome}</h3><span style="font-size:12px;color:var(--muted)">${objs.length} objetivos</span></div>
        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:8px;margin-top:12px">
-         ${objs.map(o => `<div style="background:var(--paper);border:1px solid var(--line);border-top:3px solid ${d.cor};border-radius:9px;padding:9px 11px;font-size:12.5px;line-height:1.35"><b style="color:${d.cor}">${o.numero}.</b> ${o.titulo}</div>`).join('') || '<span style="color:var(--muted);font-size:13px">Sem objetivos.</span>'}
+         ${objs.map(o => { const c = objCount[o.numero]||0; return `<div title="${c} projeto(s)" style="background:var(--paper);border:1px solid var(--line);border-top:3px solid ${d.cor};border-radius:9px;padding:9px 11px;font-size:12.5px;line-height:1.35"><b style="color:${d.cor}">${o.numero}.</b> ${o.titulo}${c?` <span style="display:inline-block;background:${d.cor};color:#fff;border-radius:99px;font-size:10px;font-weight:800;padding:1px 7px;margin-left:2px">${c} ✓</span>`:''}</div>`; }).join('') || '<span style="color:var(--muted);font-size:13px">Sem objetivos.</span>'}
        </div>
      </div>`; }).join('')}`;
 };
