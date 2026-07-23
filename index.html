@@ -254,6 +254,9 @@ input[type=checkbox],input[type=radio]{width:auto;min-width:0;height:auto;paddin
 .pick:hover{background:var(--cream)}
 .pick small{color:var(--muted);margin-left:auto}
 .pick i{color:#fff;display:grid;place-items:center;font-weight:800;border-radius:50%;font-style:normal;flex-shrink:0}
+.chips-sel{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.sel-chip{display:inline-flex;align-items:center;gap:7px;background:var(--cream);border:1px solid var(--line);border-radius:99px;padding:5px 11px;font-size:13px;color:var(--ink)}
+.sel-chip b{cursor:pointer;color:var(--brick);font-weight:800;font-size:15px;line-height:1}
 .cad-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
 .cad-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:var(--shadow-sm);cursor:pointer;transition:.16s}
 .cad-card:hover{transform:translateY(-3px);box-shadow:var(--shadow)}
@@ -698,7 +701,7 @@ function openProj(id){
 }
 function openNewProj(){
   $('#modal-content').innerHTML=`
-   <div class="mhead"><div><h2>Novo projeto</h2><span style="font-size:12.5px;color:var(--muted)">Cadastro rápido — grava na tabela <b>projetos</b> (Supabase)</span></div> <button class="x" onclick="closeModal()">&times;</button></div> <div class="mbody"> <div class="field"><label>Nome do projeto</label><input id="np-nome" placeholder="Ex.: Requalificação do prédio Elefante Branco"></div> <div class="mrow" style="grid-template-columns:1fr 1fr"> <div class="field"><label>Dimensão</label><select id="np-dim">${DIMS.map(d=>`<option value="${d.id}">${d.nome}</option>`).join('')}</select></div> <div class="field"><label>Status</label><select id="np-st"><option value="plan">Planejada</option><option value="exec">Em execução</option><option value="done">Concluído</option></select></div> </div> <div class="mrow" style="grid-template-columns:1fr 1fr"> <div class="field"><label>Líder do projeto</label><select id="np-lider"><option value="">Selecione…</option>${PESSOAS.map(p=>`<option value="${p.id}">${p.nome} — ${instById(p.inst)?instById(p.inst).sigla:''}</option>`).join('')}</select></div> <div class="field"><label>Prazo</label><input id="np-prazo" placeholder="Ex.: 12 meses"></div> </div> <div class="mrow" style="grid-template-columns:1fr 1fr 1fr"> <div class="field"><label>Início (Gantt)</label><input id="np-ini" type="date"></div> <div class="field"><label>Término (Gantt)</label><input id="np-fim" type="date"></div> <div class="field"><label>Orçamento (R$)</label><input id="np-orc" type="number" placeholder="0"></div> </div> <div class="field"><label>Equipe do projeto <span style="color:var(--muted);font-weight:400">(selecione as pessoas)</span></label> <div class="pick-list">${PESSOAS.map(p=>`<label class="pick"><input type="checkbox" class="np-team" value="${p.id}"> <i class="cad-av" style="width:26px;height:26px;font-size:10px;background:${pDimCor(p.dim)}">${initials(p.nome)}</i> ${p.nome} <small>${p.cargo}</small></label>`).join('')}</div> </div> <div class="field"><label>Objetivos estratégicos atendidos <span style="color:var(--muted);font-weight:400">(marque os do plano)</span></label> <div class="pick-list" style="max-height:230px">${DIMS.map(d=>{const os=(window.OBJETIVOS||[]).filter(o=>o.dim===d.id);return os.length?`<div style="font-size:10.5px;font-weight:800;color:${d.cor};text-transform:uppercase;letter-spacing:.5px;padding:8px 8px 3px">${d.nome}</div>`+os.map(o=>`<label class="pick"><input type="checkbox" class="np-obj" value="${o.id}"> <b style="color:${d.cor}">${o.numero}.</b> ${o.titulo}</label>`).join(''):'';}).join('')||'<div style="padding:10px;color:var(--muted);font-size:13px">Objetivos carregam após entrar na área.</div>'}</div> </div> <div class="field"><label>Descrição</label><textarea id="np-desc" placeholder="Objetivo e escopo do projeto…"></textarea></div> <button class="btn btn-primary" onclick="saveProj()">Salvar projeto</button> </div>`;
+   <div class="mhead"><div><h2>Novo projeto</h2><span style="font-size:12.5px;color:var(--muted)">Cadastro rápido — grava na tabela <b>projetos</b> (Supabase)</span></div> <button class="x" onclick="closeModal()">&times;</button></div> <div class="mbody"> <div class="field"><label>Nome do projeto</label><input id="np-nome" placeholder="Ex.: Requalificação do prédio Elefante Branco"></div> <div class="mrow" style="grid-template-columns:1fr 1fr"> <div class="field"><label>Dimensão</label><select id="np-dim">${DIMS.map(d=>`<option value="${d.id}">${d.nome}</option>`).join('')}</select></div> <div class="field"><label>Status</label><select id="np-st"><option value="plan">Planejada</option><option value="exec">Em execução</option><option value="done">Concluído</option></select></div> </div> <div class="mrow" style="grid-template-columns:1fr 1fr"> <div class="field"><label>Líder do projeto</label><select id="np-lider"><option value="">Selecione…</option>${PESSOAS.map(p=>`<option value="${p.id}">${p.nome} — ${instById(p.inst)?instById(p.inst).sigla:''}</option>`).join('')}</select></div> <div class="field"><label>Prazo</label><input id="np-prazo" placeholder="Ex.: 12 meses"></div> </div> <div class="mrow" style="grid-template-columns:1fr 1fr 1fr"> <div class="field"><label>Início (Gantt)</label><input id="np-ini" type="date"></div> <div class="field"><label>Término (Gantt)</label><input id="np-fim" type="date"></div> <div class="field"><label>Orçamento (R$)</label><input id="np-orc" type="number" placeholder="0"></div> </div> <div class="field"><label>Equipe do projeto</label> <select data-target="np-team-chips" onchange="addChip(this)"><option value="">Adicionar pessoa…</option>${PESSOAS.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')).map(p=>`<option value="${p.id}" data-nome="${p.nome}" data-color="${pDimCor(p.dim)}">${p.nome}${p.cargo?' · '+p.cargo:''}</option>`).join('')}</select> <div id="np-team-chips" class="chips-sel"></div> </div> <div class="field"><label>Objetivos estratégicos atendidos</label> <select data-target="np-obj-chips" onchange="addChip(this)"><option value="">Adicionar objetivo…</option>${DIMS.map(d=>{const os=(window.OBJETIVOS||[]).filter(o=>o.dim===d.id);return os.length?`<optgroup label="${d.nome}">`+os.map(o=>`<option value="${o.id}" data-nome="${o.numero}. ${o.titulo}" data-color="${d.cor}">${o.numero}. ${o.titulo}</option>`).join('')+`</optgroup>`:'';}).join('')}</select> <div id="np-obj-chips" class="chips-sel"></div> </div> <div class="field"><label>Descrição</label><textarea id="np-desc" placeholder="Objetivo e escopo do projeto…"></textarea></div> <button class="btn btn-primary" onclick="saveProj()">Salvar projeto</button> </div>`;
   $('#modal-bg').classList.add('open');
 }
 function saveProj(){
@@ -906,32 +909,31 @@ Nada mais havendo a tratar, foi encerrada a reunião e lavrada a presente ata, q
 function copyAta(id){const t=$('#ata-'+id).innerText;navigator.clipboard&&navigator.clipboard.writeText(t);toast(' Ata copiada para a área de transferência');}
 function openNewMeet(){
   $('#modal-content').innerHTML=`
-   <div class="mhead"><div><h2>Nova reunião</h2><span style="font-size:12.5px;color:var(--muted)">Grava em <b>reunioes</b> · pauta e participantes</span></div> <button class="x" onclick="closeModal()">&times;</button></div> <div class="mbody"> <div class="field"><label>Título da reunião</label><input id="nm-tit" placeholder="Ex.: Comitê Gestor — Reunião de Agosto"></div> <div class="mrow" style="grid-template-columns:1fr 1fr 1fr"> <div class="field"><label>Tipo</label><select id="nm-tipo"><option>Comitê Gestor</option><option>Comitê Executivo</option><option>Grupo de Trabalho</option><option>Assembleia Colegiada</option></select></div> <div class="field"><label>Data</label><input id="nm-data" type="date"></div> <div class="field"><label>Hora</label><input id="nm-hora" type="time" value="09:00"></div> </div> <div class="field"><label>Local</label><input id="nm-local" placeholder="Ex.: LabCriativo — Mercado da Vila Belga"></div> <div class="field"><label>Participantes (marque os cadastrados)</label><input id="nm-part-q" placeholder="Buscar pessoa…" oninput="filterMeetPeople()"><div id="nm-part-box" style="max-height:190px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:6px 8px;margin-top:8px">${meetPeopleCheckboxes()}</div><div style="font-size:12px;color:var(--muted);margin-top:6px"><span id="nm-part-count">0 selecionados</span> · não achou alguém? Cadastre em <b>Pessoas</b>.</div></div> <div class="field"><label>Pauta (um item por linha)</label><textarea id="nm-pauta" placeholder="Andamento das obras&#10;Prestação de contas"></textarea></div> <button class="btn btn-primary" onclick="saveMeet()">Agendar reunião</button> </div>`;
+   <div class="mhead"><div><h2>Nova reunião</h2><span style="font-size:12.5px;color:var(--muted)">Grava em <b>reunioes</b> · pauta e participantes</span></div> <button class="x" onclick="closeModal()">&times;</button></div> <div class="mbody"> <div class="field"><label>Título da reunião</label><input id="nm-tit" placeholder="Ex.: Comitê Gestor — Reunião de Agosto"></div> <div class="mrow" style="grid-template-columns:1fr 1fr 1fr"> <div class="field"><label>Tipo</label><select id="nm-tipo"><option>Comitê Gestor</option><option>Comitê Executivo</option><option>Grupo de Trabalho</option><option>Assembleia Colegiada</option></select></div> <div class="field"><label>Data</label><input id="nm-data" type="date"></div> <div class="field"><label>Hora</label><input id="nm-hora" type="time" value="09:00"></div> </div> <div class="field"><label>Local</label><input id="nm-local" placeholder="Ex.: LabCriativo — Mercado da Vila Belga"></div> <div class="field"><label>Participantes</label><select id="nm-part-sel" data-target="nm-part-chips" onchange="addChip(this)"><option value="">Adicionar participante…</option>${(window.PESSOAS||(typeof PESSOAS!=='undefined'?PESSOAS:[])||[]).slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')).map(p=>`<option value="${p.dbid||p.id}" data-nome="${p.nome}">${p.nome}${p.cargo?' · '+p.cargo:''}</option>`).join('')}</select><div id="nm-part-chips" class="chips-sel"></div><div style="font-size:12px;color:var(--muted);margin-top:6px">Adicione um por vez. Não achou alguém? Cadastre em <b>Pessoas</b>.</div></div> <div class="field"><label>Pauta (um item por linha)</label><textarea id="nm-pauta" placeholder="Andamento das obras&#10;Prestação de contas"></textarea></div> <button class="btn btn-primary" onclick="saveMeet()">Agendar reunião</button> </div>`;
   $('#modal-bg').classList.add('open');
 }
 function saveMeet(){  /* fallback em memória — sobrescrito por window.saveMeet (banco) no módulo */
   const tit=$('#nm-tit').value.trim();if(!tit){toast('Informe o título');return;}
-  const pk=[...document.querySelectorAll('.nm-pk:checked')];
+  const pk=[...document.querySelectorAll('#nm-part-chips [data-id]')];
   REUNIOES.push({id:Date.now(),titulo:tit,tipo:$('#nm-tipo').value,
     data:$('#nm-data').value||'2026-08-01',hora:$('#nm-hora').value||'09:00',
     local:$('#nm-local').value||'A definir',status:'agendada',
-    participantes:pk.map(c=>c.dataset.nome), participantesIds:pk.map(c=>c.value),
+    participantes:pk.map(c=>c.dataset.nome), participantesIds:pk.map(c=>c.dataset.id),
     pautas:($('#nm-pauta').value.split('\n').map(s=>s.trim()).filter(Boolean)),ata:null});
   closeModal();navGov('agenda');toast(' Reunião agendada');
 }
-/* ---- seleção de participantes (pessoas cadastradas) ---- */
-function meetPeopleCheckboxes(){
-  const list = (window.PESSOAS||(typeof PESSOAS!=='undefined'?PESSOAS:[])||[]);
-  if(!list.length) return '<div style="color:var(--muted);font-size:13px;padding:6px">Nenhuma pessoa cadastrada ainda. Cadastre em “Pessoas”.</div>';
-  return list.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')).map(p=>`<label class="pk-row" data-nome="${(p.nome||'').toLowerCase()}" style="display:flex;gap:9px;align-items:center;padding:6px 6px;font-size:13.5px;cursor:pointer;border-radius:6px;text-align:left"><input type="checkbox" class="nm-pk" value="${p.dbid||p.id}" data-nome="${p.nome}" onchange="updMeetCount()" style="width:16px;height:16px;min-width:16px;flex:0 0 auto;margin:0;padding:0;border:0;accent-color:var(--brick)"><span style="flex:1">${p.nome}${p.cargo?` · <span style="color:var(--muted)">${p.cargo}</span>`:''}</span></label>`).join('');
-}
-function filterMeetPeople(){
-  const q=(document.getElementById('nm-part-q').value||'').toLowerCase();
-  document.querySelectorAll('#nm-part-box .pk-row').forEach(r=>{ r.style.display=(!q||(r.dataset.nome||'').includes(q))?'flex':'none'; });
-}
-function updMeetCount(){
-  const n=document.querySelectorAll('.nm-pk:checked').length;
-  const el=document.getElementById('nm-part-count'); if(el) el.textContent=n+(n===1?' selecionado':' selecionados');
+/* ---- seleção padrão (dropdown + chips), reutilizada em toda a plataforma ---- */
+function addChip(sel){
+  const id=sel.value; if(!id) return;
+  const opt=sel.options[sel.selectedIndex];
+  const nome=opt.getAttribute('data-nome')||opt.textContent.trim();
+  const color=opt.getAttribute('data-color')||'';
+  const box=document.getElementById(sel.getAttribute('data-target')); if(!box){ sel.value=''; return; }
+  if(box.querySelector('[data-id="'+id+'"]')){ sel.value=''; return; }
+  const chip=document.createElement('span'); chip.className='sel-chip';
+  chip.setAttribute('data-id',id); chip.setAttribute('data-nome',nome);
+  chip.innerHTML=(color?`<i style="width:8px;height:8px;border-radius:2px;background:${color};display:inline-block"></i> `:'')+nome+' <b onclick="this.parentNode.remove()">×</b>';
+  box.appendChild(chip); sel.value='';
 }
 /* ---- relatório estatístico de participação ---- */
 function meetStats(){
@@ -1086,7 +1088,7 @@ async function hydrateReunioes(){
 window.saveMeet = async function(){
   const g=id=>document.getElementById(id);
   const tit=(g('nm-tit').value||'').trim(); if(!tit){ toast('Informe o título'); return; }
-  const pk=[...document.querySelectorAll('.nm-pk:checked')];
+  const pk=[...document.querySelectorAll('#nm-part-chips [data-id]')];
   const pautas=(g('nm-pauta').value||'').split('\n').map(s=>s.trim()).filter(Boolean);
   try{
     const {data:rr,error}=await sb.from('reuniao').insert({titulo:tit,tipo:g('nm-tipo').value,
@@ -1095,7 +1097,7 @@ window.saveMeet = async function(){
     if(error) throw error;
     const rid=rr.id;
     if(pautas.length){ const {error:pe}=await sb.from('reuniao_pauta').insert(pautas.map((it,i)=>({reuniao_id:rid,ordem:i+1,item:it}))); if(pe) throw pe; }
-    if(pk.length){ const {error:ce}=await sb.from('reuniao_participante').insert(pk.map(c=>({reuniao_id:rid,pessoa_id:c.value,presente:true}))); if(ce) throw ce; }
+    if(pk.length){ const {error:ce}=await sb.from('reuniao_participante').insert(pk.map(c=>({reuniao_id:rid,pessoa_id:c.dataset.id,presente:true}))); if(ce) throw ce; }
     closeModal(); await hydrateReunioes(); navGov('agenda'); toast(' Reunião agendada no banco');
   }catch(err){ toast('Erro ao salvar: '+(err.message||err)); }
 };
@@ -1173,9 +1175,9 @@ window.saveProj = async function(){
     data_inicio:document.getElementById('np-ini').value||null, data_fim:document.getElementById('np-fim').value||null,
     orcamento:Number(document.getElementById('np-orc').value)||0 }).select('id').single();
   if(error){ toast('Erro ao salvar: '+error.message); return; }
-  const team = [...document.querySelectorAll('.np-team:checked')].map(c=>({ projeto_id:data.id, pessoa_id:(pById(c.value)||{}).dbid })).filter(t=>t.pessoa_id);
+  const team = [...document.querySelectorAll('#np-team-chips [data-id]')].map(c=>({ projeto_id:data.id, pessoa_id:(pById(c.dataset.id)||{}).dbid })).filter(t=>t.pessoa_id);
   if(team.length) await sb.from('projeto_equipe').insert(team);
-  const objs = [...document.querySelectorAll('.np-obj:checked')].map(c=>({ projeto_id:data.id, objetivo_id:c.value }));
+  const objs = [...document.querySelectorAll('#np-obj-chips [data-id]')].map(c=>({ projeto_id:data.id, objetivo_id:c.dataset.id }));
   if(objs.length) await sb.from('projeto_objetivo').insert(objs);
   closeModal(); await hydrateProjetos(); navGov('projetos'); toast(' Projeto criado — equipe e objetivos vinculados');
 };
