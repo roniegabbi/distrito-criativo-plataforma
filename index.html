@@ -865,7 +865,7 @@ function saveEvento(){
 /* ---------- AGENDA & ATAS ---------- */
 function pageAgenda(m){
   m.innerHTML=`
-   <div class="page-head"><div><h1>Agenda & Atas</h1><p>Reuniões da governança com participantes, pautas e geração de ata assistida por IA.</p></div> <button class="btn btn-primary btn-sm" onclick="openNewMeet()">+ Nova reunião</button></div> <div id="meet-list"></div>`;
+   <div class="page-head"><div><h1>Agenda & Atas</h1><p>Reuniões da governança com participantes, pautas e geração de ata assistida por IA.</p></div> <div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" onclick="openStatsReport()">Relatório de participação</button><button class="btn btn-primary btn-sm" onclick="openNewMeet()">+ Nova reunião</button></div></div> <div id="meet-list"></div>`;
   renderMeetings();
 }
 function renderMeetings(){
@@ -877,13 +877,10 @@ function renderMeetings(){
         : `<button class="btn btn-petrol btn-sm" id="gen-${r.id}" onclick="gerarAta(${r.id})"> Gerar ata com IA</button>`}
     </div>`).join('');
 }
-function gerarAta(id){
-  const btn=$('#gen-'+id);btn.innerHTML='<span class="spin"></span> Redigindo ata…';btn.disabled=true;
-  setTimeout(()=>{
-    const r=REUNIOES.find(x=>x.id===id);
-    r.ata=composeAta(r);r.status='realizada';renderMeetings();
-    toast(' Ata redigida pela IA a partir da pauta');
-  },1600);
+function gerarAta(id){  /* fallback — sobrescrito por window.gerarAta (banco) no módulo */
+  const btn=$('#gen-'+id);if(btn){btn.innerHTML='<span class="spin"></span> Redigindo ata…';btn.disabled=true;}
+  const r=REUNIOES.find(x=>x.id===id);if(!r)return;
+  setTimeout(()=>{ r.ata=composeAta(r);r.status='realizada';renderMeetings();toast(' Ata redigida'); },1200);
 }
 function composeAta(r){
   const delib=r.pautas.map((p,i)=>`${i+1}. ${p.toUpperCase()}\nApós exposição e debate entre os presentes, o comitê deliberou sobre "${p}". Registraram-se contribuições dos participantes e definiram-se os encaminhamentos, com responsáveis e prazos a serem acompanhados pela Coordenação Executiva.`).join('\n\n');
@@ -908,18 +905,64 @@ Nada mais havendo a tratar, foi encerrada a reunião e lavrada a presente ata, q
 function copyAta(id){const t=$('#ata-'+id).innerText;navigator.clipboard&&navigator.clipboard.writeText(t);toast(' Ata copiada para a área de transferência');}
 function openNewMeet(){
   $('#modal-content').innerHTML=`
-   <div class="mhead"><div><h2>Nova reunião</h2><span style="font-size:12.5px;color:var(--muted)">Grava em <b>reunioes</b> · pauta e participantes</span></div> <button class="x" onclick="closeModal()">&times;</button></div> <div class="mbody"> <div class="field"><label>Título da reunião</label><input id="nm-tit" placeholder="Ex.: Comitê Gestor — Reunião de Agosto"></div> <div class="mrow" style="grid-template-columns:1fr 1fr 1fr"> <div class="field"><label>Tipo</label><select id="nm-tipo"><option>Comitê Gestor</option><option>Comitê Executivo</option><option>Grupo de Trabalho</option><option>Assembleia Colegiada</option></select></div> <div class="field"><label>Data</label><input id="nm-data" type="date"></div> <div class="field"><label>Hora</label><input id="nm-hora" type="time" value="09:00"></div> </div> <div class="field"><label>Local</label><input id="nm-local" placeholder="Ex.: LabCriativo — Mercado da Vila Belga"></div> <div class="field"><label>Participantes (um por linha)</label><textarea id="nm-part" placeholder="Rose Carneiro (Coord. Executiva)&#10;Rep. Sebrae RS"></textarea></div> <div class="field"><label>Pauta (um item por linha)</label><textarea id="nm-pauta" placeholder="Andamento das obras&#10;Prestação de contas"></textarea></div> <button class="btn btn-primary" onclick="saveMeet()">Agendar reunião</button> </div>`;
+   <div class="mhead"><div><h2>Nova reunião</h2><span style="font-size:12.5px;color:var(--muted)">Grava em <b>reunioes</b> · pauta e participantes</span></div> <button class="x" onclick="closeModal()">&times;</button></div> <div class="mbody"> <div class="field"><label>Título da reunião</label><input id="nm-tit" placeholder="Ex.: Comitê Gestor — Reunião de Agosto"></div> <div class="mrow" style="grid-template-columns:1fr 1fr 1fr"> <div class="field"><label>Tipo</label><select id="nm-tipo"><option>Comitê Gestor</option><option>Comitê Executivo</option><option>Grupo de Trabalho</option><option>Assembleia Colegiada</option></select></div> <div class="field"><label>Data</label><input id="nm-data" type="date"></div> <div class="field"><label>Hora</label><input id="nm-hora" type="time" value="09:00"></div> </div> <div class="field"><label>Local</label><input id="nm-local" placeholder="Ex.: LabCriativo — Mercado da Vila Belga"></div> <div class="field"><label>Participantes (marque os cadastrados)</label><input id="nm-part-q" placeholder="Buscar pessoa…" oninput="filterMeetPeople()"><div id="nm-part-box" style="max-height:190px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:6px 8px;margin-top:8px">${meetPeopleCheckboxes()}</div><div style="font-size:12px;color:var(--muted);margin-top:6px"><span id="nm-part-count">0 selecionados</span> · não achou alguém? Cadastre em <b>Pessoas</b>.</div></div> <div class="field"><label>Pauta (um item por linha)</label><textarea id="nm-pauta" placeholder="Andamento das obras&#10;Prestação de contas"></textarea></div> <button class="btn btn-primary" onclick="saveMeet()">Agendar reunião</button> </div>`;
   $('#modal-bg').classList.add('open');
 }
-function saveMeet(){
+function saveMeet(){  /* fallback em memória — sobrescrito por window.saveMeet (banco) no módulo */
   const tit=$('#nm-tit').value.trim();if(!tit){toast('Informe o título');return;}
+  const pk=[...document.querySelectorAll('.nm-pk:checked')];
   REUNIOES.push({id:Date.now(),titulo:tit,tipo:$('#nm-tipo').value,
     data:$('#nm-data').value||'2026-08-01',hora:$('#nm-hora').value||'09:00',
     local:$('#nm-local').value||'A definir',status:'agendada',
-    participantes:($('#nm-part').value.split('\n').map(s=>s.trim()).filter(Boolean)),
+    participantes:pk.map(c=>c.dataset.nome), participantesIds:pk.map(c=>c.value),
     pautas:($('#nm-pauta').value.split('\n').map(s=>s.trim()).filter(Boolean)),ata:null});
   closeModal();navGov('agenda');toast(' Reunião agendada');
 }
+/* ---- seleção de participantes (pessoas cadastradas) ---- */
+function meetPeopleCheckboxes(){
+  const list = (window.PESSOAS||(typeof PESSOAS!=='undefined'?PESSOAS:[])||[]);
+  if(!list.length) return '<div style="color:var(--muted);font-size:13px;padding:6px">Nenhuma pessoa cadastrada ainda. Cadastre em “Pessoas”.</div>';
+  return list.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')).map(p=>`<label class="pk-row" data-nome="${(p.nome||'').toLowerCase()}" style="display:flex;gap:9px;align-items:center;padding:5px 4px;font-size:13.5px;cursor:pointer;border-radius:6px"><input type="checkbox" class="nm-pk" value="${p.dbid||p.id}" data-nome="${p.nome}" onchange="updMeetCount()"><span>${p.nome}${p.cargo?` · <span style="color:var(--muted)">${p.cargo}</span>`:''}</span></label>`).join('');
+}
+function filterMeetPeople(){
+  const q=(document.getElementById('nm-part-q').value||'').toLowerCase();
+  document.querySelectorAll('#nm-part-box .pk-row').forEach(r=>{ r.style.display=(!q||(r.dataset.nome||'').includes(q))?'flex':'none'; });
+}
+function updMeetCount(){
+  const n=document.querySelectorAll('.nm-pk:checked').length;
+  const el=document.getElementById('nm-part-count'); if(el) el.textContent=n+(n===1?' selecionado':' selecionados');
+}
+/* ---- relatório estatístico de participação ---- */
+function meetStats(){
+  const meets=REUNIOES||[]; const tally={};
+  meets.forEach(r=>{ (r.participantes||[]).forEach(nome=>{ const k=(nome||'').trim(); if(!k) return;
+    if(!tally[k]) tally[k]={nome:k,total:0,byTipo:{},last:''}; tally[k].total++;
+    tally[k].byTipo[r.tipo]=(tally[k].byTipo[r.tipo]||0)+1;
+    if(!tally[k].last||r.data>tally[k].last) tally[k].last=r.data; }); });
+  const reg=new Set((window.PESSOAS||(typeof PESSOAS!=='undefined'?PESSOAS:[])||[]).map(p=>p.nome));
+  const rows=Object.values(tally).map(t=>({...t,registrado:reg.has(t.nome)})).sort((a,b)=>b.total-a.total||a.nome.localeCompare(b.nome));
+  const totalMeet=meets.length;
+  const avg=totalMeet?(meets.reduce((s,r)=>s+((r.participantes||[]).length),0)/totalMeet):0;
+  return {rows,totalMeet,avg,distintos:rows.length};
+}
+function openStatsReport(){
+  const s=meetStats();
+  const body=s.rows.map(t=>{ const pct=s.totalMeet?Math.round(t.total/s.totalMeet*100):0; return `<tr><td style="padding:7px 8px">${t.nome}${t.registrado?'':' <span style="font-size:10px;color:#b0056b">(não cadastrado)</span>'}</td><td style="padding:7px 8px;text-align:center;font-weight:800">${t.total}</td><td style="padding:7px 8px"><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:8px;background:#eef1f3;border-radius:99px;overflow:hidden"><div style="width:${pct}%;height:100%;background:var(--brick)"></div></div><span style="font-size:12px;color:var(--muted);width:38px;text-align:right">${pct}%</span></div></td><td style="padding:7px 8px;font-size:12px;color:var(--muted)">${t.last?fmtData(t.last):'—'}</td></tr>`; }).join('');
+  $('#modal-content').innerHTML=`
+   <div class="mhead"><div><h2>Relatório de participação</h2><span style="font-size:12.5px;color:var(--muted)">Presença dos atores nas reuniões da governança</span></div> <button class="x" onclick="closeModal()">&times;</button></div>
+   <div class="mbody">
+    <div class="kpis" style="margin-bottom:16px"> <div class="kpi"><div class="lbl">Reuniões</div><b>${s.totalMeet}</b></div> <div class="kpi"><div class="lbl">Participantes distintos</div><b>${s.distintos}</b></div> <div class="kpi"><div class="lbl">Média por reunião</div><b>${s.avg.toFixed(1)}</b></div> </div>
+    ${s.rows.length?`<table style="width:100%;border-collapse:collapse;font-size:13.5px"><thead><tr style="text-align:left;border-bottom:2px solid var(--line);color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px"><th style="padding:8px">Participante</th><th style="padding:8px;text-align:center">Reuniões</th><th style="padding:8px">Presença</th><th style="padding:8px">Último encontro</th></tr></thead><tbody>${body}</tbody></table>`:'<p style="color:var(--muted)">Ainda não há reuniões com participantes para gerar estatística.</p>'}
+    <div style="margin-top:18px;display:flex;gap:8px"><button class="btn btn-petrol btn-sm" onclick="printStats()">Exportar PDF (A4)</button></div>
+    <p style="font-size:11.5px;color:var(--muted);margin-top:10px">Considera reuniões agendadas e realizadas. Vincule os participantes às pessoas cadastradas ao criar a reunião para dados consistentes.</p>
+   </div>`;
+  $('#modal-bg').classList.add('open');
+}
+window.printStats=function(){
+  const s=meetStats();
+  const rows=s.rows.map((t,i)=>{const pct=s.totalMeet?Math.round(t.total/s.totalMeet*100):0;return `<tr><td>${i+1}</td><td>${t.nome}</td><td style="text-align:center">${t.total}</td><td style="text-align:center">${pct}%</td><td>${t.last?fmtData(t.last):'—'}</td></tr>`;}).join('');
+  openPrint(`<div class="sheet"> <div class="sheet-head"> <img src="assets/brand/logo-white.png" style="height:44px"> <div style="text-align:right;color:#fff"> <div style="font-size:10px;letter-spacing:2px;opacity:.85">RELATÓRIO DE PARTICIPAÇÃO</div> <div style="font-size:13px;font-weight:800">Distrito Criativo Centro-Gare</div> </div> </div> <div style="height:6px;background:#DD0079"></div> <div class="sheet-body"> <h1 class="sh" style="font-size:18px">Participação nas reuniões da governança</h1> <div style="font-size:12px;color:#5B6577;margin-bottom:14px">${s.totalMeet} reuniões · ${s.distintos} participantes distintos · média de ${s.avg.toFixed(1)} por reunião</div> <table class="sh"><thead><tr><th>#</th><th>Participante</th><th style="text-align:center">Reuniões</th><th style="text-align:center">Presença</th><th>Último encontro</th></tr></thead><tbody>${rows||'<tr><td colspan="5" style="color:#8a94a3">Sem dados</td></tr>'}</tbody></table> <div class="sh-foot">Relatório gerado em ${new Date().toLocaleDateString('pt-BR')} pela Plataforma de Gestão · considera reuniões agendadas e realizadas.</div> </div> </div>`,'portrait');
+};
 
 /* ---------- ESTRUTURA ---------- */
 function pageEstrutura(m){
@@ -1020,7 +1063,50 @@ async function hydrateGov(){
   await hydrateInstituicoes();   // antes de pessoas (mapeia instByUuid)
   await hydratePessoas();
   await hydrateProjetos();
+  await hydrateReunioes();
 }
+async function hydrateReunioes(){
+  try{
+    const {data,error} = await sb.from('reuniao')
+      .select('*, reuniao_pauta(item,ordem), reuniao_participante(pessoa_id,nome_livre,presente,pessoa(nome))')
+      .order('data',{ascending:false});
+    if(error){ console.warn('reunioes', error); return; }
+    REUNIOES.length = 0; let n = 0;
+    (data||[]).forEach(r=>{
+      const pautas=(r.reuniao_pauta||[]).slice().sort((a,b)=>(a.ordem||0)-(b.ordem||0)).map(p=>p.item);
+      const parts=(r.reuniao_participante||[]);
+      const participantes=parts.map(x=> x.pessoa? x.pessoa.nome : (x.nome_livre||'')).filter(Boolean);
+      const participantesIds=parts.filter(x=>x.pessoa_id).map(x=>x.pessoa_id);
+      REUNIOES.push({ id:++n, dbid:r.id, titulo:r.titulo, tipo:r.tipo, data:r.data, hora:r.hora||'', local:r.local||'', status:r.status, participantes, participantesIds, pautas, ata:r.ata||null });
+    });
+  }catch(err){ console.warn('reunioes', err); }
+}
+/* ---- reuniões: gravação no banco (sobrescreve os fallbacks clássicos) ---- */
+window.saveMeet = async function(){
+  const g=id=>document.getElementById(id);
+  const tit=(g('nm-tit').value||'').trim(); if(!tit){ toast('Informe o título'); return; }
+  const pk=[...document.querySelectorAll('.nm-pk:checked')];
+  const pautas=(g('nm-pauta').value||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  try{
+    const {data:rr,error}=await sb.from('reuniao').insert({titulo:tit,tipo:g('nm-tipo').value,
+      data:g('nm-data').value||null,hora:g('nm-hora').value||'09:00',
+      local:g('nm-local').value||'A definir',status:'agendada'}).select('id').single();
+    if(error) throw error;
+    const rid=rr.id;
+    if(pautas.length){ const {error:pe}=await sb.from('reuniao_pauta').insert(pautas.map((it,i)=>({reuniao_id:rid,ordem:i+1,item:it}))); if(pe) throw pe; }
+    if(pk.length){ const {error:ce}=await sb.from('reuniao_participante').insert(pk.map(c=>({reuniao_id:rid,pessoa_id:c.value,presente:true}))); if(ce) throw ce; }
+    closeModal(); await hydrateReunioes(); navGov('agenda'); toast(' Reunião agendada no banco');
+  }catch(err){ toast('Erro ao salvar: '+(err.message||err)); }
+};
+window.gerarAta = function(id){
+  const btn=document.getElementById('gen-'+id); if(btn){ btn.innerHTML='<span class="spin"></span> Redigindo ata…'; btn.disabled=true; }
+  const r=(REUNIOES||[]).find(x=>x.id===id); if(!r) return;
+  setTimeout(async ()=>{
+    r.ata=composeAta(r); r.status='realizada';
+    try{ if(r.dbid) await sb.from('reuniao').update({ata:r.ata,status:'realizada'}).eq('id',r.dbid); }catch(e){ console.warn('ata',e); }
+    renderMeetings(); toast(' Ata redigida e salva no banco');
+  },1200);
+};
 
 // ---------- AUTH ----------
 window.doLogin = async function(e){
