@@ -160,6 +160,7 @@ section.block.alt{background:var(--paper)}
 .field{margin-bottom:15px}
 .field label{display:block;font-weight:700;font-size:13.5px;margin-bottom:6px}
 .field input,.field select,.field textarea{width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:9px;font-size:14px;font-family:inherit;background:#fff}
+input[type=checkbox],input[type=radio]{width:auto;min-width:0;height:auto;padding:0;border:0;border-radius:0;background:none;box-shadow:none;accent-color:var(--brick);cursor:pointer;flex:0 0 auto;vertical-align:middle}
 .field textarea{min-height:110px;resize:vertical}
 .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--petrol)}
 .chan{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px;display:flex;gap:14px;align-items:flex-start}
@@ -922,7 +923,7 @@ function saveMeet(){  /* fallback em memória — sobrescrito por window.saveMee
 function meetPeopleCheckboxes(){
   const list = (window.PESSOAS||(typeof PESSOAS!=='undefined'?PESSOAS:[])||[]);
   if(!list.length) return '<div style="color:var(--muted);font-size:13px;padding:6px">Nenhuma pessoa cadastrada ainda. Cadastre em “Pessoas”.</div>';
-  return list.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')).map(p=>`<label class="pk-row" data-nome="${(p.nome||'').toLowerCase()}" style="display:flex;gap:9px;align-items:center;padding:5px 4px;font-size:13.5px;cursor:pointer;border-radius:6px"><input type="checkbox" class="nm-pk" value="${p.dbid||p.id}" data-nome="${p.nome}" onchange="updMeetCount()"><span>${p.nome}${p.cargo?` · <span style="color:var(--muted)">${p.cargo}</span>`:''}</span></label>`).join('');
+  return list.slice().sort((a,b)=>(a.nome||'').localeCompare(b.nome||'')).map(p=>`<label class="pk-row" data-nome="${(p.nome||'').toLowerCase()}" style="display:flex;gap:9px;align-items:center;padding:6px 6px;font-size:13.5px;cursor:pointer;border-radius:6px;text-align:left"><input type="checkbox" class="nm-pk" value="${p.dbid||p.id}" data-nome="${p.nome}" onchange="updMeetCount()" style="width:16px;height:16px;min-width:16px;flex:0 0 auto;margin:0;padding:0;border:0;accent-color:var(--brick)"><span style="flex:1">${p.nome}${p.cargo?` · <span style="color:var(--muted)">${p.cargo}</span>`:''}</span></label>`).join('');
 }
 function filterMeetPeople(){
   const q=(document.getElementById('nm-part-q').value||'').toLowerCase();
